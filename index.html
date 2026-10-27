@@ -1,0 +1,1482 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style></head><body>
+<title>Escalator CA Dashboard</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Outfit:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+/* Layout: one glass "frame" of stacked panels over a rose-to-sand sky; views switch in place.
+   Single deliberate look (pink glass, neon data), so no dark-mode variant. */
+:root {
+  color-scheme: light;
+  --text: #ffffff; --text-2: rgba(255,250,252,.93); --muted: rgba(255,244,249,.78);
+  --plum: #3a2c36; --pink: #ff9cc4; --pink-2: #ffc4dc; --pink-deep: #ff5fa8; --lavender: #cdb4ff;
+  --neon-pink: #ff5fa8; --neon-cyan: #5ff2ff; --neon-violet: #b98cff; --neon-mint: #6dffc4; --neon-gold: #ffd76a;
+  --sky-1: #f2b6d6; --sky-2: #dcb7ee; --sky-3: #efc9dd; --sky-4: #f6dccd; --sky-5: #eed2bd;
+  --glass: rgba(128,82,128,.46); --glass-2: rgba(142,94,140,.38); --glass-hi: rgba(255,255,255,.24);
+  --edge: rgba(255,255,255,.6); --edge-soft: rgba(255,255,255,.32); --hair: rgba(255,255,255,.18);
+  --shadow: 0 18px 44px rgba(120,50,110,.25), 0 0 0 1px rgba(255,140,200,.10), 0 2px 6px rgba(86,54,72,.12);
+  --glow: 0 0 0 1px rgba(255,255,255,.7), 0 0 22px rgba(255,95,168,.7);
+  --los-A: #5dffb0; --los-B: #b9ff7a; --los-C: #ffe066; --los-D: #ffa64d; --los-E: #ff5f8f; --los-F: #ff2e63;
+  --strip: #24152e;
+  --radius: 26px;
+  --display: "Outfit", "Inter", "Helvetica Neue", Arial, sans-serif;
+  --body: "Inter", "Helvetica Neue", Arial, sans-serif;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; min-height: 100vh; color: var(--text); font-family: var(--body); font-size: 15px; line-height: 1.55;
+  background-color: var(--sky-2);
+  background-image:
+    radial-gradient(1100px 520px at 12% -6%, rgba(255,190,225,.95), transparent 60%),
+    radial-gradient(900px 520px at 96% 6%, rgba(200,170,255,.9), transparent 60%),
+    radial-gradient(700px 420px at 80% 70%, rgba(140,230,255,.35), transparent 65%),
+    radial-gradient(800px 460px at 10% 85%, rgba(255,150,200,.4), transparent 65%),
+    linear-gradient(180deg, var(--sky-1) 0%, var(--sky-2) 30%, var(--sky-3) 58%, var(--sky-4) 82%, var(--sky-5) 100%);
+  background-attachment: fixed;
+}
+a { color: inherit; }
+::selection { background: rgba(255,95,168,.5); }
+button { font: inherit; color: inherit; }
+
+.orbs { position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden; }
+.orb { position: absolute; border-radius: 50%; }
+.orb.bubble { background: radial-gradient(circle at 32% 28%, rgba(255,255,255,.95) 0 6%, rgba(255,255,255,.25) 14%, rgba(255,255,255,.06) 45%, rgba(205,180,230,.28) 70%, rgba(255,210,225,.45) 100%);
+  box-shadow: inset -8px -10px 24px rgba(180,140,200,.25), inset 6px 6px 16px rgba(255,255,255,.35), 0 10px 30px rgba(120,80,110,.15); border: 1px solid rgba(255,255,255,.45); }
+.orb.pearl { background: radial-gradient(circle at 35% 30%, #fff 0 10%, #f6eef2 30%, #e3d2dc 65%, #cbb5c4 100%); box-shadow: 0 6px 14px rgba(120,80,110,.25); }
+@media (max-width: 720px) { .orb.hide-sm { display: none; } }
+
+.frame { position: relative; z-index: 1; max-width: 1180px; margin: 0 auto;
+  padding-block: 20px 36px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+
+.glass, .card, .nav, .head, .kpi, .table-wrap, .monitor, .progress, .plos-part, .verdict {
+  background: linear-gradient(180deg, var(--glass-hi), rgba(255,255,255,0) 38%), var(--glass);
+  -webkit-backdrop-filter: blur(18px) saturate(1.15); backdrop-filter: blur(18px) saturate(1.15);
+  border: 1px solid var(--edge-soft);
+  box-shadow: var(--shadow), inset 0 1px 0 var(--edge);
+}
+
+.nav { display: flex; align-items: center; gap: 14px 18px; border-radius: 999px; padding: 10px 14px 10px 18px; flex-wrap: wrap; margin-bottom: 20px; }
+.logo { display: inline-flex; align-items: center; gap: 10px; font-family: var(--display); font-size: 18px; letter-spacing: .01em; background: none; border: 0; cursor: pointer; padding: 0; }
+.logo::before { content: ""; width: 22px; height: 22px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #fff 0 12%, #efe4ea 35%, #c9b2c2 100%); box-shadow: 0 2px 6px rgba(80,50,70,.35); }
+.logo small { font-family: var(--body); font-size: 10.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+.nav-links { display: flex; gap: 4px; margin: 0 auto; flex-wrap: wrap; }
+.nav-links button { background: none; border: 0; cursor: pointer; font-size: 14px; padding: 7px 16px; border-radius: 999px; color: var(--text-2); }
+.nav-links button:hover { background: rgba(255,255,255,.14); color: var(--text); }
+.nav-links button.active { background: rgba(255,95,168,.32); color: var(--text); box-shadow: inset 0 0 0 1px rgba(255,255,255,.7), 0 0 16px rgba(255,95,168,.55); }
+.store-chip { font-size: 11.5px; color: var(--muted); padding-right: 6px; }
+@media (max-width: 720px) { .nav { border-radius: 22px; } .nav-links { margin: 0; width: 100%; } }
+
+.head { border-radius: 30px; padding: 26px 30px 28px; margin-bottom: 20px; }
+.head h1, h2.title, .verdict h2 {
+  font-family: var(--display); font-weight: 400; text-transform: uppercase; letter-spacing: .02em; margin: 0; text-wrap: balance;
+  background: linear-gradient(92deg, #ffffff 0%, #ffe1f0 45%, #e4d4ff 100%); -webkit-background-clip: text; background-clip: text; color: transparent;
+  filter: drop-shadow(0 0 14px rgba(255,120,190,.45));
+}
+.head h1 { font-size: clamp(28px, 4.2vw, 44px); line-height: 1.05; }
+.head p { margin: 10px 0 0; font-weight: 300; font-size: 15.5px; color: var(--text-2); max-width: 62ch; }
+.crumbs { font-size: 11.5px; text-transform: uppercase; letter-spacing: .12em; margin-bottom: 10px; color: var(--muted); }
+.crumbs button { background: none; border: 0; padding: 0; cursor: pointer; border-bottom: 1px solid var(--edge); font-size: inherit; letter-spacing: inherit; text-transform: inherit; color: inherit; }
+@media (max-width: 720px) { .head { padding: 22px 18px; border-radius: 24px; } }
+
+.section { margin-bottom: 20px; }
+.grid { display: grid; gap: 18px; }
+.g2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.g3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.g4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@media (max-width: 960px) { .g4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } .g3 { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 640px) { .g2, .g3, .g4 { grid-template-columns: 1fr; } }
+.card { border-radius: var(--radius); padding: 22px; position: relative; min-width: 0; }
+.card.paper { background: linear-gradient(180deg, var(--glass-hi), rgba(255,255,255,0) 38%), var(--glass-2); }
+h2.title { font-size: 24px; line-height: 1.1; margin-bottom: 14px; }
+h3.sub { font-family: var(--display); font-weight: 500; text-transform: uppercase; font-size: 13.5px; letter-spacing: .1em; margin: 0 0 12px; color: var(--pink-2); text-shadow: 0 0 10px rgba(255,95,168,.45); }
+.muted { color: var(--muted); }
+.small { font-size: 13px; }
+.lead { font-weight: 300; font-size: 16px; }
+b, strong { font-weight: 600; }
+
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; color: var(--text); border-radius: 999px; padding: 10px 22px; font-size: 14px; letter-spacing: .02em; cursor: pointer; text-decoration: none;
+  background: linear-gradient(180deg, rgba(255,255,255,.42), rgba(255,255,255,.08)), rgba(255,95,168,.55); border: 1px solid rgba(255,255,255,.55);
+  box-shadow: 0 6px 18px rgba(160,80,110,.25), inset 0 1px 0 rgba(255,255,255,.6); transition: box-shadow .2s, transform .1s; }
+.btn:hover { box-shadow: var(--glow), 0 8px 22px rgba(160,80,110,.3); }
+.btn:active { transform: translateY(1px); }
+.btn:focus-visible, input:focus-visible, .nav-links button:focus-visible, .logo:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+.btn.ghost { background: rgba(255,255,255,.16); box-shadow: inset 0 1px 0 rgba(255,255,255,.35); }
+.btn.small { padding: 7px 16px; font-size: 12.5px; }
+.btn.danger { background: rgba(255,46,99,.32); border-color: rgba(255,180,195,.7); }
+.btn:disabled { opacity: .45; cursor: not-allowed; box-shadow: none; }
+.btn-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.check { display: flex; gap: 10px; align-items: center; font-size: 14px; color: var(--text-2); cursor: pointer; }
+.check input { width: 17px; height: 17px; accent-color: var(--pink-deep); margin: 0; }
+
+.kpi { border-radius: 20px; padding: 14px 16px; min-width: 0; box-shadow: var(--shadow), inset 0 1px 0 var(--edge), inset 0 0 0 1px rgba(95,242,255,.10); }
+.kpi .k { font-size: 11px; text-transform: uppercase; letter-spacing: .09em; color: var(--muted); }
+.kpi .v { font-family: var(--display); font-size: 28px; line-height: 1.15; margin-top: 4px; font-variant-numeric: tabular-nums; text-shadow: 0 0 12px rgba(95,242,255,.55); }
+.kpi .u { font-size: 13px; color: var(--muted); margin-left: 4px; font-family: var(--body); text-shadow: none; }
+.kpi .note { font-size: 12px; color: var(--muted); margin-top: 3px; }
+
+.los { display: inline-grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; font-weight: 500; font-family: var(--display); border: 1px solid rgba(255,255,255,.7); flex: none;
+  background-image: radial-gradient(circle at 32% 28%, rgba(255,255,255,.75) 0 10%, rgba(255,255,255,0) 45%);
+  box-shadow: 0 0 18px var(--glowc, rgba(255,95,168,.6)), 0 4px 12px rgba(80,40,60,.25); }
+.los.big { width: 112px; height: 112px; font-size: 56px; }
+.los.mid { width: 58px; height: 58px; font-size: 28px; }
+.los-A { background-color: var(--los-A); color: #1f4a35; --glowc: rgba(93,255,176,.7); }
+.los-B { background-color: var(--los-B); color: #36501a; --glowc: rgba(185,255,122,.7); }
+.los-C { background-color: var(--los-C); color: #5a4300; --glowc: rgba(255,224,102,.7); }
+.los-D { background-color: var(--los-D); color: #5a2f00; --glowc: rgba(255,166,77,.7); }
+.los-E { background-color: var(--los-E); color: #fff; --glowc: rgba(255,95,143,.75); }
+.los-F { background-color: var(--los-F); color: #fff; --glowc: rgba(255,46,99,.8); }
+.los-none { background-color: rgba(255,255,255,.16); color: var(--muted); --glowc: transparent; }
+.plos-hero { display: grid; grid-template-columns: auto 1fr; gap: 24px; align-items: center; }
+.plos-parts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-top: 18px; }
+@media (max-width: 760px) { .plos-parts { grid-template-columns: 1fr; } .plos-hero { grid-template-columns: 1fr; } }
+.plos-part { border-radius: 20px; padding: 14px; display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: center; min-width: 0; }
+.plos-part.off { opacity: .7; border-style: dashed; box-shadow: none; }
+.timebar { display: flex; height: 12px; border-radius: 999px; overflow: hidden; margin: 8px 0 6px; background: rgba(255,255,255,.12); }
+.timebar div { height: 100%; }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 12px; color: var(--text-2); }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 5px; vertical-align: -1px; border: 1px solid rgba(255,255,255,.5); }
+
+.verdict { border-radius: 30px; padding: 26px; display: grid; grid-template-columns: auto 1fr; gap: 24px; align-items: center; }
+.verdict.better { background: linear-gradient(180deg, var(--glass-hi), rgba(255,255,255,0) 40%), rgba(40,170,120,.42); }
+.verdict.worse { background: linear-gradient(180deg, var(--glass-hi), rgba(255,255,255,0) 40%), rgba(230,60,120,.42); }
+.verdict.neutral { background: linear-gradient(180deg, var(--glass-hi), rgba(255,255,255,0) 40%), rgba(140,100,210,.44); }
+.verdict .mark { width: 92px; height: 92px; border-radius: 50%; display: grid; place-items: center; font-size: 42px; color: var(--plum); background: radial-gradient(circle at 32% 28%, #fff 0 12%, #f3e8ee 40%, #d6c2cf 100%); box-shadow: 0 8px 20px rgba(80,40,60,.3); }
+.verdict h2 { font-size: clamp(24px, 3.4vw, 34px); line-height: 1.1; margin-bottom: 6px; }
+@media (max-width: 640px) { .verdict { grid-template-columns: 1fr; } }
+ul.findings { margin: 0; padding-left: 20px; color: var(--text-2); }
+ul.findings li { margin: 6px 0; }
+.rec { margin-top: 16px; display: inline-block; padding: 9px 18px; border-radius: 999px; font-size: 14px; background: rgba(255,255,255,.18); border: 1px solid var(--edge); box-shadow: var(--glow); }
+
+.table-wrap { overflow-x: auto; border-radius: 22px; }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th, td { padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--hair); vertical-align: middle; }
+th { font-size: 11px; text-transform: uppercase; letter-spacing: .09em; font-weight: 500; color: var(--pink-2); background: rgba(255,255,255,.08); white-space: nowrap; }
+tr:last-child td { border-bottom: 0; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+tr.diff td { background: rgba(255,95,168,.2); }
+td.best { font-weight: 600; color: var(--neon-mint); text-shadow: 0 0 10px rgba(109,255,196,.6); }
+tbody tr:hover { background: rgba(255,255,255,.06); }
+.linkbtn { background: none; border: 0; padding: 0; cursor: pointer; color: inherit; font: inherit; text-align: left; border-bottom: 1px solid var(--edge); }
+.ci { color: var(--muted); font-size: 12px; }
+.tag { display: inline-block; font-size: 11px; text-transform: uppercase; letter-spacing: .07em; border: 1px solid var(--edge); border-radius: 999px; padding: 3px 11px; background: rgba(255,255,255,.18); white-space: nowrap; color: #fff; }
+.empty { text-align: center; padding: 34px 10px; }
+
+.chart-box { position: relative; height: 290px; }
+.small-chart { height: 230px; }
+.chart-note { font-size: 12px; color: var(--muted); margin-top: 8px; }
+
+.progress { height: 18px; border-radius: 999px; overflow: hidden; }
+.progress div { height: 100%; width: 0; border-radius: 999px; transition: width .3s; background: linear-gradient(90deg, var(--neon-cyan), var(--neon-violet), var(--neon-pink)); box-shadow: 0 0 16px rgba(255,95,168,.9); }
+
+/* dashboard */
+.dash-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 18px; flex-wrap: wrap; }
+.dash-head p { font-variant-numeric: tabular-nums; }
+.speed { min-width: min(260px, 100%); }
+.speed label { display: block; font-size: 11.5px; text-transform: uppercase; letter-spacing: .09em; margin-bottom: 6px; color: var(--text-2); }
+.dash-bar { display: flex; align-items: center; gap: 18px 26px; flex-wrap: wrap; padding: 16px 20px; }
+.dash-checks { display: flex; flex-direction: column; gap: 8px; }
+.monitors { display: flex; gap: 10px; flex-wrap: wrap; margin-left: auto; }
+.monitor { border-radius: 18px; padding: 7px 16px; min-width: 124px; text-align: center; }
+.monitor span { display: block; font-size: 10px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+.monitor b { font-family: var(--display); font-weight: 400; font-size: 21px; font-variant-numeric: tabular-nums; text-shadow: 0 0 12px rgba(95,242,255,.55); }
+@media (max-width: 720px) { .monitors { margin-left: 0; } }
+.pending-note { margin: 10px 6px 0; font-size: 13px; text-shadow: 0 0 10px rgba(224,124,157,.9); }
+.strip-card { background: linear-gradient(180deg, rgba(255,255,255,.14), rgba(255,255,255,0) 30%), rgba(60,30,70,.66); box-shadow: var(--shadow), inset 0 1px 0 var(--edge), 0 0 30px rgba(185,140,255,.25); }
+.strip-head { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; color: var(--muted); }
+.strip-head .sub { margin: 0; }
+#ca { width: 100%; height: 150px; display: block; border-radius: 16px; box-shadow: 0 0 0 1px rgba(95,242,255,.35), 0 0 22px rgba(95,242,255,.25); }
+.ca-legend { margin-top: 12px; }
+.panels .card { padding: 18px; }
+.panel-violet { background: linear-gradient(180deg, var(--glass-hi), rgba(255,255,255,0) 38%), rgba(130,90,190,.42); }
+.panel-pink { background: linear-gradient(180deg, var(--glass-hi), rgba(255,255,255,0) 38%), rgba(220,80,150,.40); }
+.slider { margin-bottom: 13px; }
+.slider label { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 13px; margin-bottom: 4px; color: var(--text-2); }
+.slider output { font-variant-numeric: tabular-nums; background: rgba(255,255,255,.16); border: 1px solid rgba(95,242,255,.6); box-shadow: 0 0 10px rgba(95,242,255,.35); border-radius: 999px; padding: 0 10px; font-size: 12.5px; color: var(--text); }
+input[type=range] { -webkit-appearance: none; appearance: none; width: 100%; height: 22px; background: transparent; margin: 0; }
+input[type=range]::-webkit-slider-runnable-track { height: 6px; border-radius: 999px; background: linear-gradient(90deg, var(--neon-cyan), var(--neon-violet), var(--neon-pink)); box-shadow: 0 0 10px rgba(185,140,255,.55); }
+input[type=range]::-moz-range-track { height: 6px; border-radius: 999px; background: linear-gradient(90deg, var(--neon-cyan), var(--neon-violet), var(--neon-pink)); }
+input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; margin-top: -6px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #fff 0 18%, #f7d3df 50%, #ff5fa8 100%); border: 1px solid #fff; box-shadow: 0 0 10px rgba(255,95,168,.9); }
+input[type=range]::-moz-range-thumb { width: 18px; height: 18px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #fff 0 18%, #f7d3df 50%, #ff5fa8 100%); border: 1px solid #fff; }
+.radio-list { display: grid; gap: 9px; }
+.radio-list input { accent-color: var(--pink-deep); width: 16px; height: 16px; }
+.stand-card { display: grid; grid-template-columns: 1fr auto; gap: 22px; align-items: center; background: linear-gradient(180deg, var(--glass-hi), rgba(255,255,255,0) 40%), rgba(220,80,150,.40); }
+.stand-card p { color: var(--text-2); font-weight: 300; margin: 0; }
+@media (max-width: 720px) { .stand-card { grid-template-columns: 1fr; } }
+.file-label { position: relative; overflow: hidden; }
+.file-label input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+
+footer { margin-top: 6px; padding: 16px 24px; font-size: 12.5px; display: flex; justify-content: space-between; gap: 10px 18px; flex-wrap: wrap; color: var(--text-2);
+  border-radius: 999px; background: rgba(110,60,110,.42); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); border: 1px solid var(--edge-soft); }
+@media (max-width: 720px) { footer { border-radius: 22px; } }
+.toast { position: fixed; z-index: 50; left: 50%; transform: translateX(-50%); bottom: calc(18px + env(safe-area-inset-bottom, 0px)); max-width: calc(100% - 32px);
+  padding: 10px 18px; border-radius: 999px; font-size: 14px; background: rgba(58,30,62,.9); border: 1px solid var(--edge); box-shadow: var(--glow); }
+code { background: rgba(255,255,255,.14); border: 1px solid var(--hair); border-radius: 8px; padding: 1px 7px; font-size: 12.5px; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="orbs" aria-hidden="true">
+  <span class="orb bubble" style="width:120px;height:120px;left:-30px;top:38%"></span>
+  <span class="orb bubble hide-sm" style="width:84px;height:84px;right:6%;top:9%"></span>
+  <span class="orb bubble hide-sm" style="width:38px;height:38px;right:3%;top:52%"></span>
+  <span class="orb pearl" style="width:26px;height:26px;left:4%;top:76%"></span>
+  <span class="orb pearl hide-sm" style="width:18px;height:18px;right:12%;top:84%"></span>
+  <span class="orb pearl hide-sm" style="width:14px;height:14px;left:48%;top:4%"></span>
+</div>
+
+<div class="frame">
+  <nav class="nav" aria-label="Main">
+    <button class="logo" type="button" data-go="dashboard">Escalator CA <small>IIT Delhi</small></button>
+    <div class="nav-links">
+      <button type="button" data-go="dashboard" id="nav-dashboard">Run</button>
+      <button type="button" data-go="results" id="nav-results">Results</button>
+      <button type="button" data-go="method" id="nav-method">Method</button>
+    </div>
+    <span class="store-chip" id="store-chip">Runs saved in this browser</span>
+  </nav>
+
+  <!-- ===================================================== DASHBOARD -->
+  <section id="view-dashboard" class="view">
+    <div class="head dash-head">
+      <div>
+        <h1>Escalator CA dashboard</h1>
+        <p id="time-text">Press Setup to build the escalator and generate the arrivals.</p>
+      </div>
+      <div class="speed">
+        <label for="speed">model speed <b id="speed-v">20</b></label>
+        <input type="range" id="speed" min="1" max="300" step="1" value="20">
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="card dash-bar">
+        <div class="btn-row">
+          <button type="button" class="btn" id="b-setup">Setup</button>
+          <button type="button" class="btn" id="b-go">Go</button>
+          <button type="button" class="btn ghost" id="b-save">Save run now</button>
+        </div>
+        <div class="dash-checks">
+          <label class="check"><input type="checkbox" id="c-wlsr"> walk-left-stand-right</label>
+          <label class="check"><input type="checkbox" id="c-down"> down-escalator</label>
+        </div>
+        <div class="monitors">
+          <div class="monitor"><span>Flow [ped/s]</span><b id="m-flow">N/A</b></div>
+          <div class="monitor"><span>Density [share of places]</span><b id="m-density">N/A</b></div>
+          <div class="monitor"><span>Queue [ped]</span><b id="m-queue">0</b></div>
+        </div>
+      </div>
+      <p class="pending-note" id="pending" hidden>Settings changed. They apply when you press Setup.</p>
+    </div>
+
+    <div class="section">
+      <div class="card strip-card">
+        <div class="strip-head"><h3 class="sub">Escalator (running direction: left → right)</h3><span class="small" id="strip-info"></span></div>
+        <canvas id="ca" aria-label="Escalator cellular automaton: 2 lanes by N steps, coloured by pedestrian type"></canvas>
+        <div class="legend ca-legend">
+          <span><i style="background:#ff3b5c"></i>single</span><span><i style="background:#ffa31a"></i>baggage (both lanes)</span>
+          <span><i style="background:#c77dff"></i>pair side by side</span><span><i style="background:#ffe14d"></i>pair front-back</span>
+          <span><i style="background:#ff7ac8"></i>pair diagonal</span><span><i style="background:#3dffa8"></i>group of 3–6</span>
+          <span><i style="background:#3d2a4a;box-shadow:inset 0 0 0 3px #3d2a4a,inset 0 0 0 5px #fff"></i>white dot = walking</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="section grid g3">
+      <div class="card paper"><h3 class="sub">Cumulative flow</h3><div class="chart-box small-chart"><canvas id="ch-cum"></canvas></div></div>
+      <div class="card paper"><h3 class="sub">Mean density</h3><div class="chart-box small-chart"><canvas id="ch-dens"></canvas></div></div>
+      <div class="card paper"><h3 class="sub">Mean flow</h3><div class="chart-box small-chart"><canvas id="ch-flow"></canvas></div></div>
+    </div>
+
+    <div class="section" id="result-panel" hidden>
+      <div class="card paper">
+        <div class="plos-hero">
+          <span class="los big los-none" id="r-los">–</span>
+          <div>
+            <div class="crumbs" id="r-saved">Saved</div>
+            <h2 class="title" id="r-title">PLOS</h2>
+            <p class="lead" style="margin:0" id="r-meaning"></p>
+            <p class="small" style="margin:8px 0 0" id="r-parts"></p>
+          </div>
+        </div>
+        <div class="grid g4" id="r-kpis" style="margin-top:18px"></div>
+        <div class="btn-row" style="margin-top:18px"><button type="button" class="btn" id="r-open">Open full results</button><button type="button" class="btn ghost" data-go="results">All runs</button></div>
+      </div>
+    </div>
+
+    <div class="section grid g4 panels" id="panels"></div>
+    <p class="small muted" id="incline-text" style="text-align:center;font-style:italic"></p>
+
+    <div class="section" id="stand-only">
+      <div class="card stand-card">
+        <div>
+          <h2 class="title" style="margin-bottom:8px">Is stand-only better?</h2>
+          <p>Uses the settings above. Simulates walking allowed, walk-left / stand-right (90% compliant) and stand-only on the same arrival streams, 5 runs each plus 3 capacity tests at unlimited demand, and sweeps the walking share 0–50%. The result is a verdict with 95% confidence intervals and the PLOS of each policy.</p>
+          <div id="study-progress" hidden style="margin-top:14px">
+            <div class="progress"><div id="study-bar"></div></div>
+            <p class="small" id="study-msg" style="margin:8px 0 0"></p>
+          </div>
+        </div>
+        <button type="button" class="btn" id="b-study">Run stand-only check</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================================================== RESULTS -->
+  <section id="view-results" class="view" hidden>
+    <div class="head">
+      <div class="crumbs">Results</div>
+      <h1>Saved runs</h1>
+      <p id="results-intro">Every dashboard run, newest first, and the stand-only checks below. Tick two to six runs and press Compare.</p>
+    </div>
+    <div class="section">
+      <div class="btn-row" style="margin-bottom:14px">
+        <button type="button" class="btn" id="b-compare" disabled>Compare selected</button>
+        <button type="button" class="btn ghost" id="b-export-csv">Download runs table (CSV)</button>
+        <button type="button" class="btn ghost" id="b-backup">Download backup (JSON)</button>
+        <label class="btn ghost file-label" for="f-restore">Restore a backup<input type="file" id="f-restore" accept=".json,application/json"></label>
+        <span class="muted small" id="cmp-n">Select 2–6 runs</span>
+      </div>
+      <div id="runs-table"></div>
+    </div>
+    <div class="section">
+      <h2 class="title">Stand-only checks</h2>
+      <div id="studies-table"></div>
+    </div>
+  </section>
+
+  <section id="view-run" class="view" hidden></section>
+  <section id="view-compare" class="view" hidden></section>
+  <section id="view-study" class="view" hidden></section>
+
+  <!-- ===================================================== METHOD -->
+  <section id="view-method" class="view" hidden>
+    <div class="head">
+      <div class="crumbs">Method</div>
+      <h1>How the results are produced</h1>
+      <p>What the model does, how PLOS is graded, and what the stand-only verdict means.</p>
+    </div>
+    <div class="section grid g2">
+      <div class="card paper">
+        <h3 class="sub">The cellular-automata model</h3>
+        <p>The escalator is 2 lanes × N steps; one cell holds one person. Every 0.01 s the model (1) moves the belt one step every S<sub>l</sub>/v seconds, (2) lets walkers climb one step at their own pace (inverse speed ~ N(0.53, 0.33²) s/step, clipped) or overtake diagonally if allowed, and (3) boards the head of the entry queue when a place on the first step is free. Groups and their formations, baggage, boarding hesitation, group breakup, the age mix and up/down direction follow Xie et al. (2022) and the thesis extensions E1–E7.</p>
+        <p class="small muted">This page runs a JavaScript port of <code>model.py</code>, <code>arrivals.py</code>, <code>runner.py</code> and <code>plos.py</code> in your browser. The rules are the same; the random-number generator is different, so a given seed does not reproduce the Python run exactly.</p>
+      </div>
+      <div class="card paper">
+        <h3 class="sub">Results</h3>
+        <ul class="findings">
+          <li><b>Throughput</b>: exits per hour.</li>
+          <li><b>Queueing delay</b>: joining the queue to stepping on; people still waiting at the end count with their wait so far.</li>
+          <li><b>Peak and mean queue</b>: people waiting at the entry, sampled each second.</li>
+          <li><b>Saturated capacity</b> (stand-only check): exits per hour when demand is unlimited, the practical capacity.</li>
+          <li><b>Clear difference</b>: |B − A| larger than √(CI<sub>A</sub>² + CI<sub>B</sub>²), an approximate 5% test.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="section">
+      <h2 class="title">PLOS criteria, Yadav &amp; Rastogi (2025)</h2>
+      <div class="grid g2" id="los-tables"></div>
+    </div>
+    <div class="section grid g3">
+      <div class="card paper"><h3 class="sub">v / Cf</h3><p class="small">People boarding in each 24-s interval, converted to ped/m/min (1 m wide escalator), divided by the reference capacity Cf. Cf = 172 ped/m/min at 0.65 m/s (88.4% of the theoretical 195) and is scaled the same way for other belt speeds. The escalator is graded on its peak interval.</p></div>
+      <div class="card paper"><h3 class="sub">Approach density</h3><p class="small">People waiting at the entry divided by the approach area (9 m², the paper's 8.84–9.38 m² trapezoid), every second. Graded on the maximum. The CA queue has no spatial extent, so densities above about 4 ped/m² mean the queue would spill beyond that area.</p></div>
+      <div class="card paper"><h3 class="sub">Overall PLOS</h3><p class="small">The worse of the two grades. Approach speed, the paper's third criterion, is not available because the CA does not model walking towards the escalator.</p></div>
+    </div>
+  </section>
+
+  <footer>
+    <span>Step-length CA after Xie et al. (2022) · PLOS after Yadav &amp; Rastogi (2025) · behaviour parameters are placeholders until calibrated.</span>
+    <span>Model 2026-10-21 · JavaScript port</span>
+  </footer>
+</div>
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+"use strict";
+/* =====================================================================
+   1. Random numbers (seeded)
+   ===================================================================== */
+function makeRng(seed) {
+  let a = (seed >>> 0) || 1, spare = null;
+  const random = () => { a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  const r = {
+    random,
+    uniform: (lo, hi) => lo + (hi - lo) * random(),
+    normal(m, s) {
+      if (spare !== null) { const z = spare; spare = null; return m + s * z; }
+      let u, v, q; do { u = 2 * random() - 1; v = 2 * random() - 1; q = u * u + v * v; } while (q >= 1 || q === 0);
+      const f = Math.sqrt(-2 * Math.log(q) / q); spare = v * f; return m + s * u * f;
+    },
+    exponential: scale => -Math.log(1 - random()) * scale,
+    gamma(k, theta) {
+      if (k < 1) return r.gamma(k + 1, theta) * Math.pow(random(), 1 / k);
+      const d = k - 1 / 3, c = 1 / Math.sqrt(9 * d);
+      for (;;) { let x, v; do { x = r.normal(0, 1); v = 1 + c * x; } while (v <= 0); v = v * v * v; const u = random();
+        if (u < 1 - 0.0331 * x * x * x * x || Math.log(u) < 0.5 * x * x + d * (1 - v + Math.log(v))) return d * v * theta; }
+    },
+    poisson(lam) {
+      if (lam <= 0) return 0;
+      if (lam > 40) return Math.max(0, Math.round(r.normal(lam, Math.sqrt(lam))));
+      const L = Math.exp(-lam); let k = 0, p = 1; do { k++; p *= random(); } while (p > L); return k - 1;
+    },
+    choice(items, weights) { const tot = weights.reduce((s, w) => s + w, 0); let u = random() * tot;
+      for (let i = 0; i < items.length; i++) { u -= weights[i]; if (u < 0) return items[i]; } return items[items.length - 1]; },
+  };
+  return r;
+}
+const newSeed = () => Math.floor(Math.random() * 2147483646) + 1;
+
+/* =====================================================================
+   2. Arrival models (arrivals.py) -- event times on [0, T)
+   ===================================================================== */
+const Arrivals = {
+  deterministic(rate, T, rng) { const h = 1 / rate, out = []; for (let t = rng.uniform(0, h); t < T; t += h) out.push(t); return out; },
+  erlang(rate, T, k, rng) { const out = []; let t = 0; for (;;) { t += rng.gamma(k, 1 / rate / k); if (t >= T) return out; out.push(t); } },
+  nhpp(rateFn, rateMax, T, rng) { return Arrivals.erlang(rateMax, T, 1, rng).filter(t => rng.random() < rateFn(t) / rateMax); },
+  mmpp2(rate, T, rng, burst = 6, meanBurst = 25, meanLull = 95) {
+    const piHi = meanBurst / (meanBurst + meanLull), lamLo = rate / (piHi * burst + (1 - piHi)), lamHi = burst * lamLo, out = [];
+    let t = 0, hi = rng.random() < piHi;
+    while (t < T) { const end = Math.min(t + rng.exponential(hi ? meanBurst : meanLull), T), n = rng.poisson((hi ? lamHi : lamLo) * (end - t));
+      for (let i = 0; i < n; i++) out.push(rng.uniform(t, end)); t = end; hi = !hi; }
+    return out.sort((x, y) => x - y);
+  },
+  trainPlatoon(rate, T, rng, H = 180, batchCv = 0.3, door = 12, dist = [5, 70], speed = [1.25, 0.25], bg = 0.05) {
+    const meanBatch = rate * H * (1 - bg), out = [];
+    for (let tt = rng.uniform(0, H); tt < T; tt += H) {
+      const shape = 1 / (batchCv * batchCv), lam = rng.gamma(shape, meanBatch / shape), n = rng.poisson(lam);
+      for (let i = 0; i < n; i++) { const v = Math.min(2.2, Math.max(0.5, rng.normal(speed[0], speed[1])));
+        out.push(tt + rng.uniform(0, door) + rng.uniform(dist[0], dist[1]) / v); }
+    }
+    if (bg > 0) out.push(...Arrivals.erlang(rate * bg, T, 1, rng));
+    return out.filter(t => t < T).sort((x, y) => x - y);
+  },
+  make(model, rate, T, seed) {
+    const rng = makeRng(seed);
+    switch (model) {
+      case "deterministic": return Arrivals.deterministic(rate, T, rng);
+      case "erlang3": return Arrivals.erlang(rate, T, 3, rng);
+      case "nhpp_peak": { const lo = 2 * rate / 3, hi = 2 * lo; return Arrivals.nhpp(t => lo + (hi - lo) * 0.5 * (1 - Math.cos(2 * Math.PI * t / T)), hi, T, rng); }
+      case "mmpp2": return Arrivals.mmpp2(rate, T, rng);
+      case "train_platoon": return Arrivals.trainPlatoon(rate, T, rng);
+      default: return Arrivals.erlang(rate, T, 1, rng);
+    }
+  },
+};
+
+/* =====================================================================
+   3. The CA (model.py + entities.py)
+   ===================================================================== */
+const TS_M = 0.01, LEFT = 0, RIGHT = 1;
+const GROUP_SIZES = [2, 3, 4, 5, 6], GROUP_W = [494, 82, 21, 8, 2];
+const FORMS = ["front_back", "left_right", "diagonal"], FORM_W = [3.4, 26.7, 4.9];
+const AGES = ["adult", "older_adult", "child"], AGE_W = [0.75, 0.15, 0.10];
+const AGE_SPEED = { adult: 1.0, older_adult: 0.70, child: 0.85 }, AGE_WALK = { adult: 1.0, older_adult: 0.30, child: 0.50 };
+const DOWN_FACTOR = 1.29;
+let PED_ID = 0;
+const clip = (x, lo, hi) => Math.min(hi, Math.max(lo, x));
+
+function meanPersonsPerEvent(pg) {
+  const tot = GROUP_W.reduce((a, b) => a + b, 0), e = GROUP_SIZES.reduce((s, k, i) => s + k * GROUP_W[i], 0) / tot, g = pg / 100;
+  return (1 - g) + g * e;
+}
+
+class EscalatorCA {
+  constructor(p) {
+    this.p = p; this.rng = makeRng(p.seed);
+    this.N = p.n_steps; this.invSpeed = p.step_length_m / p.escalator_speed_mps; this.escTicks = Math.round(this.invSpeed / TS_M);
+    this.grid = [new Array(this.N).fill(null), new Array(this.N).fill(null)];
+    this.queue = []; this.t = 0; this.tick = 0; this.nextEsc = this.escTicks; this.escCount = 0; this.dec = new Map();
+    if (p.arrival_mode === "trace") { this.trace = p.arrival_times || []; this.traceIdx = 0; }
+    else this.nextArrival = this.t + this.rng.exponential(1 / p.arrival_rate);
+    this.cumIn = 0; this.cumOut = 0; this.bypass = 0; this.blocked = 0; this.exited = []; this.breakups = 0; this.history = [];
+  }
+  occ(lane, step) { return (step < 0 || step >= this.N) ? null : this.grid[lane][step]; }
+  _clear(ped) { if (ped.step >= 0 && ped.step < this.N) { for (const l of [LEFT, RIGHT]) if (this.grid[l][ped.step] === ped) this.grid[l][ped.step] = null; } }
+  place(ped, lane, step) { this._clear(ped); this.grid[lane][step] = ped; ped.lane = lane; ped.step = step; }
+  placeWide(ped, step) { this._clear(ped); this.grid[LEFT][step] = ped; this.grid[RIGHT][step] = ped; ped.lane = -1; ped.step = step; }
+
+  makePed(gid, size) {
+    const p = this.p, rng = this.rng, eligible = size === 1 || size === 2;
+    const age = rng.choice(AGES, AGE_W);
+    const walk = eligible && rng.random() < (p.p_walk_pct / 100) * AGE_WALK[age];
+    const bypass = walk && rng.random() < 0.5;
+    let v = clip(rng.normal(0.53, 0.33), 0.40, 0.75) / AGE_SPEED[age];
+    if (p.direction === "down") v /= DOWN_FACTOR;
+    v = clip(v, 0.20, 1.20);
+    const wide = size === 1 && rng.random() < p.p_baggage_pct / 100;
+    const strictRight = !walk && rng.random() < (p.wlsr_compliance || 0);
+    return { id: ++PED_ID, gid, size, lane: -1, step: -1, walk, bypass, vinv: v, nextSpont: this.tick + Math.round(v / TS_M),
+             enteredAt: this.t, exitedAt: null, boardedAt: null, age, wide, partner: null, intact: true, blockedTicks: 0,
+             formation: null, strictRight, entryLane: null };
+  }
+  spawnEvent() {
+    const gid = ++PED_ID, rng = this.rng;
+    if (!(rng.random() < this.p.p_group_pct / 100)) { this.queue.push([this.makePed(gid, 1)]); return; }
+    const size = rng.choice(GROUP_SIZES, GROUP_W), members = [];
+    for (let i = 0; i < size; i++) members.push(this.makePed(gid, size));
+    const formation = (size === 2 && !this.p.strategy_I) ? rng.choice(FORMS, FORM_W) : "front_back";
+    members.forEach(m => { m.formation = formation; });
+    if (size === 2 && formation === "left_right") { members[0].partner = members[1].id; members[1].partner = members[0].id; }
+    this.queue.push(members);
+  }
+  stranger(ped, other) { return other !== null && other.gid !== ped.gid; }
+  accepts(ped, lane) {
+    if (this.occ(lane, 0) !== null) return false;
+    const key = ped.id * 2 + lane, cached = this.dec.get(key);
+    if (cached && cached[0] === this.escCount) return cached[1];
+    const p = this.p, rng = this.rng; let ok = true;
+    if (p.entry_hesitation_prob > 0 && rng.random() < p.entry_hesitation_prob) ok = false;
+    const other = lane === LEFT ? RIGHT : LEFT;
+    if (ok && p.p_share_step < 1 && this.stranger(ped, this.occ(other, 0))) ok = rng.random() < p.p_share_step;
+    if (ok && p.walker_board_gap && ped.walk && this.stranger(ped, this.occ(lane, 1))) ok = false;
+    if (ok && p.p_no_gap_ok < 1 && this.stranger(ped, this.occ(lane, 1))) ok = rng.random() < p.p_no_gap_ok;
+    this.dec.set(key, [this.escCount, ok]);
+    return ok;
+  }
+  board(ped, lane, wide) { if (wide) this.placeWide(ped, 0); else this.place(ped, lane, 0); ped.boardedAt = this.t; this.cumIn++; }
+  chooseLane(ped) {
+    const lf = this.occ(LEFT, 0) === null, rf = this.occ(RIGHT, 0) === null;
+    if (!lf && !rf) return null;
+    if (this.p.walk_left_stand_right) {
+      if (!ped.walk && ped.strictRight) return rf ? RIGHT : null;
+      const pref = ped.walk ? LEFT : RIGHT, other = ped.walk ? RIGHT : LEFT;
+      if (pref === LEFT && lf) return LEFT;
+      if (pref === RIGHT && rf) return RIGHT;
+      return other;
+    }
+    if (lf && rf) return this.rng.random() < 0.5 ? LEFT : RIGHT;
+    return lf ? LEFT : RIGHT;
+  }
+  tryEnter() {
+    if (!this.queue.length) return;
+    const group = this.queue[0], lead = group[0], pending = group.filter(m => m.boardedAt === null);
+    if (group.length === 1) {
+      if (lead.wide) {
+        if (this.occ(LEFT, 0) === null && this.occ(RIGHT, 0) === null && this.accepts(lead, LEFT)) { this.board(lead, null, true); this.queue.shift(); }
+        return;
+      }
+      const lane = this.chooseLane(lead);
+      if (lane !== null && this.accepts(lead, lane)) { this.board(lead, lane); this.queue.shift(); }
+      return;
+    }
+    const f = lead.formation || "left_right";
+    if (group.length === 2 && f === "left_right") {
+      if (this.occ(LEFT, 0) === null && this.occ(RIGHT, 0) === null && this.accepts(lead, LEFT)) { this.board(group[0], LEFT); this.board(group[1], RIGHT); this.queue.shift(); }
+      return;
+    }
+    if (lead.boardedAt === null) {
+      const lane = this.chooseLane(lead);
+      if (lane === null || !this.accepts(lead, lane)) return;
+      this.board(lead, lane); lead.entryLane = lane;
+    } else {
+      const base = lead.entryLane === null ? LEFT : lead.entryLane, other = base === LEFT ? RIGHT : LEFT;
+      for (const m of pending) {
+        let target;
+        if (group.length === 2 && f === "front_back") target = base;
+        else if (group.length === 2) { if (lead.step < 1) break; target = other; }
+        else target = this.occ(base, 0) === null ? base : other;
+        if (this.occ(target, 0) === null) this.board(m, target); else break;
+      }
+    }
+    if (group.every(m => m.boardedAt !== null)) this.queue.shift();
+  }
+  processArrivals() {
+    if (this.p.arrival_mode === "trace") {
+      while (this.traceIdx < this.trace.length && this.t >= this.trace[this.traceIdx]) { this.traceIdx++; this.spawnEvent(); }
+    } else {
+      while (this.t >= this.nextArrival) { this.spawnEvent(); this.nextArrival = this.t + this.rng.exponential(1 / this.p.arrival_rate); }
+    }
+  }
+  exit(ped) { ped.exitedAt = this.t; this.cumOut++; this.exited.push(ped); }
+  advanceEscalator() {
+    const done = new Set(), g = this.grid, N = this.N;
+    this.escCount++;
+    if (this.dec.size > 5000) this.dec.clear();
+    for (let lane = 0; lane < 2; lane++) for (let s = N - 1; s >= 0; s--) {
+      const p = g[lane][s];
+      if (p === null || done.has(p.id)) continue;
+      done.add(p.id);
+      if (p.wide) { g[LEFT][s] = null; g[RIGHT][s] = null; if (s === N - 1) this.exit(p); else { g[LEFT][s + 1] = p; g[RIGHT][s + 1] = p; p.step = s + 1; } }
+      else { g[lane][s] = null; if (s === N - 1) this.exit(p); else { g[lane][s + 1] = p; p.step = s + 1; } }
+    }
+  }
+  move(ped) {
+    if (!ped.walk) return;
+    const step = ped.step;
+    if (step < 0 || step >= this.N - 1) return;
+    if (ped.wide) {
+      if (this.occ(LEFT, step + 1) === null && this.occ(RIGHT, step + 1) === null) this.placeWide(ped, step + 1); else this.blocked++;
+      return;
+    }
+    const lane = ped.lane, same = o => o !== null && o.gid === ped.gid;
+    const front = this.occ(lane, step + 1);
+    if (front === null || same(front)) { this.place(ped, lane, step + 1); return; }
+    if (!ped.bypass) { this.blocked++; return; }
+    const ol = lane === LEFT ? RIGHT : LEFT, diag = this.occ(ol, step + 1);
+    if (diag === null || same(diag)) { this.place(ped, ol, step + 1); this.bypass++; } else this.blocked++;
+  }
+  movePair(ped, partner) {
+    if (!ped.intact) return;
+    const step = ped.step;
+    if (step < 0 || step >= this.N - 1) return;
+    const fa = this.occ(ped.lane, step + 1), fb = this.occ(partner.lane, step + 1);
+    const freeA = fa === null || fa === partner, freeB = fb === null || fb === ped;
+    if (freeA && freeB) { this.place(ped, ped.lane, step + 1); this.place(partner, partner.lane, step + 1); ped.blockedTicks = 0; partner.blockedTicks = 0; }
+    else {
+      ped.blockedTicks++; partner.blockedTicks++; this.blocked++;
+      if (ped.blockedTicks >= this.p.group_breakup_blocked_ticks && this.rng.random() < this.p.group_breakup_prob) { ped.intact = false; partner.intact = false; this.breakups++; }
+    }
+  }
+  step() {
+    if (this.tick >= this.nextEsc) { this.advanceEscalator(); this.nextEsc += this.escTicks; }
+    const g = this.grid, N = this.N, due = [];
+    for (let s = N - 1; s >= 0; s--) for (let l = 0; l < 2; l++) { const p = g[l][s]; if (p !== null && p.nextSpont <= this.tick) due.push(p); }
+    const done = new Set();
+    for (const ped of due) {
+      if (done.has(ped.id)) continue;
+      if (ped.walk && ped.size === 2 && ped.intact && ped.partner !== null && ped.step >= 0 && ped.step < N && ped.lane >= 0) {
+        const partner = g[ped.lane === LEFT ? RIGHT : LEFT][ped.step];
+        if (partner !== null && partner.id === ped.partner && partner.walk) {
+          this.movePair(ped, partner); done.add(ped.id); done.add(partner.id);
+          partner.nextSpont = this.tick + Math.round(partner.vinv / TS_M); ped.nextSpont = this.tick + Math.round(ped.vinv / TS_M);
+          continue;
+        }
+      }
+      this.move(ped); ped.nextSpont = this.tick + Math.round(ped.vinv / TS_M); done.add(ped.id);
+    }
+    this.processArrivals(); this.tryEnter();
+    this.t += TS_M; this.tick++;
+  }
+  run(duration, sampleEvery = 10) {
+    let next = sampleEvery;
+    while (this.t < duration) { this.step(); if (this.t >= next) { this.history.push({ t: this.t, cum_outflow: this.cumOut }); next += sampleEvery; } }
+  }
+  queueLen() { let n = 0; for (const g of this.queue) for (const m of g) if (m.boardedAt === null) n++; return n; }
+}
+
+/* =====================================================================
+   4. Metrics (runner.py) and PLOS (plos.py)
+   ===================================================================== */
+const mean = a => a.length ? a.reduce((s, x) => s + x, 0) / a.length : null;
+function percentile(a, q) { if (!a.length) return null; const s = [...a].sort((x, y) => x - y), i = (s.length - 1) * q / 100, lo = Math.floor(i), hi = Math.ceil(i); return s[lo] + (s[hi] - s[lo]) * (i - lo); }
+const theoreticalCapacityPph = p => 2 * p.escalator_speed_mps / p.step_length_m * 3600;
+
+function summarizeSim(sim, warm, t, queue, occupancy, cumOut) {
+  const exited = sim.exited.filter(x => x.enteredAt >= warm), boarded = exited.filter(x => x.boardedAt !== null);
+  const waiting = []; for (const g of sim.queue) for (const m of g) if (m.boardedAt === null && m.enteredAt >= warm) waiting.push(m);
+  const delays = boarded.map(x => x.boardedAt - x.enteredAt).concat(waiting.map(m => sim.t - m.enteredAt));
+  const rides = boarded.map(x => x.exitedAt - x.boardedAt), ridesW = boarded.filter(x => x.walk).map(x => x.exitedAt - x.boardedAt);
+  const soj = exited.map(x => x.exitedAt - x.enteredAt);
+  const out = {
+    served: boarded.length, mean_delay_s: mean(delays), p95_delay_s: percentile(delays, 95), max_delay_s: delays.length ? Math.max(...delays) : null,
+    mean_ride_s: mean(rides), mean_ride_walkers_s: mean(ridesW), mean_sojourn_s: mean(soj),
+    share_walkers: exited.length ? exited.filter(x => x.walk).length / exited.length : null,
+    queue_at_end_ped: sim.queueLen(), bypass_count: sim.bypass, blocked_walk_count: sim.blocked, group_breakup_count: sim.breakups,
+    theoretical_capacity_pph: theoreticalCapacityPph(sim.p), ts_m_s: TS_M,
+  };
+  if (t && t.length) {
+    const idx = []; t.forEach((v, i) => { if (v >= warm) idx.push(i); });
+    if (idx.length) {
+      if (queue) { const q = idx.map(i => queue[i]); out.max_queue_ped = Math.max(...q); out.mean_queue_ped = mean(q); out.share_time_queue_gt20 = q.filter(x => x > 20).length / q.length; }
+      if (occupancy) out.mean_occ_ped_per_step = mean(idx.map(i => occupancy[i])) / sim.N;
+      if (cumOut) { const i0 = idx[0], span = t[t.length - 1] - (i0 > 0 ? t[i0 - 1] : 0);
+        if (span > 0) out.throughput_pph = (cumOut[cumOut.length - 1] - (i0 > 0 ? cumOut[i0 - 1] : 0)) / span * 3600; }
+    }
+  }
+  return out;
+}
+
+const PLOS = {
+  COUNT_S: 24, REF_SHARE: 0.884, AREA: 9.0, WIDTH: 1.0,
+  CRITERIA: {
+    4: { vc: [[0.10, "A"], [0.25, "B"], [0.46, "C"], [0.81, "D"], [Infinity, "E"]], density: [[0.23, "A"], [0.80, "B"], [1.52, "C"], [3.20, "D"], [Infinity, "E"]] },
+    5: { vc: [[0.08, "A"], [0.21, "B"], [0.36, "C"], [0.55, "D"], [0.81, "E"], [Infinity, "F"]], density: [[0.11, "A"], [0.45, "B"], [1.02, "C"], [1.74, "D"], [3.20, "E"], [Infinity, "F"]] },
+  },
+  MEANING: {
+    A: "Free flow: plenty of spare capacity, no queue to speak of.",
+    B: "Reasonably free: occasional small queues, boarding without delay.",
+    C: "Stable flow: noticeable queues during surges, still comfortable.",
+    D: "Approaching unstable: frequent queues, constrained (platoon) movement.",
+    E: "Unstable / at capacity: long queues and crowding at the entry.",
+    F: "Forced / jammed flow: demand exceeds what the escalator can serve.",
+  },
+  letter(v, k, kind) { for (const [b, l] of PLOS.CRITERIA[k][kind]) if (v <= b) return l; return "E"; },
+  worse: (a, b) => ("ABCDEF".indexOf(a) >= "ABCDEF".indexOf(b) ? a : b),
+  cf: (v, sl) => PLOS.REF_SHARE * 2 * v / sl * 60 / PLOS.WIDTH,
+  bands(k, kind) { const out = []; let lo = 0; for (const [hi, l] of PLOS.CRITERIA[k][kind]) { out.push([lo, isFinite(hi) ? hi : null, l]); lo = hi; } return out; },
+  assess(t, cumIn, queue, warm, v, sl, area = PLOS.AREA, k = 4) {
+    const cf = PLOS.cf(v, sl), letters = PLOS.CRITERIA[k].vc.map(x => x[1]), intervals = [];
+    const search = x => { let lo = 0, hi = t.length; while (lo < hi) { const m = (lo + hi) >> 1; if (t[m] < x) lo = m + 1; else hi = m; } return lo; };
+    if (t.length) {
+      for (let start = warm; start + PLOS.COUNT_S <= t[t.length - 1] + 1e-6; start += PLOS.COUNT_S) {
+        const end = start + PLOS.COUNT_S, i0 = search(start - 1e-6), i1 = search(end - 1e-6);
+        const c0 = i0 > 0 ? cumIn[i0 - 1] : 0, c1 = cumIn[Math.min(i1, cumIn.length - 1)], n = c1 - c0;
+        const flow = n / (PLOS.COUNT_S / 60) / PLOS.WIDTH, vc = flow / cf;
+        intervals.push({ t_start_s: +start.toFixed(1), t_end_s: +end.toFixed(1), persons: n, flow_ped_m_min: +flow.toFixed(2), vc: +vc.toFixed(4), los: n === 0 ? "no flow" : PLOS.letter(vc, k, "vc") });
+      }
+    }
+    const vcs = intervals.length ? intervals.map(i => i.vc) : [0];
+    const peak = Math.max(...vcs);
+    const shareVc = { "no flow": 0 }; letters.forEach(l => { shareVc[l] = 0; });
+    intervals.forEach(i => { shareVc[i.los]++; });
+    if (intervals.length) Object.keys(shareVc).forEach(key => { shareVc[key] /= intervals.length; });
+    const dens = []; t.forEach((x, i) => { if (x >= warm) dens.push(queue[i] / area); });
+    if (!dens.length) dens.push(0);
+    const maxD = Math.max(...dens), shareD = {}; letters.forEach(l => { shareD[l] = 0; });
+    dens.forEach(d => { shareD[PLOS.letter(d, k, "density")]++; });
+    Object.keys(shareD).forEach(key => { shareD[key] /= dens.length; });
+    const losVc = PLOS.letter(peak, k, "vc"), losD = PLOS.letter(maxD, k, "density"), gov = PLOS.worse(losVc, losD);
+    const cBound = PLOS.CRITERIA[k].density.find(x => x[1] === "C")[0];
+    const peakQ = Math.max(0, ...t.map((x, i) => (x >= warm ? queue[i] : 0)));
+    const r3 = x => Math.round(x * 1000) / 1000;
+    return { k, reference_capacity_ped_m_min: +cf.toFixed(1), approach_area_m2: area, count_interval_s: PLOS.COUNT_S,
+      peak_vc: r3(peak), mean_vc: r3(mean(vcs)), los_vc: losVc, share_time_vc: shareVc,
+      max_density: r3(maxD), p95_density: r3(percentile(dens, 95)), mean_density: r3(mean(dens)), los_density: losD, share_time_density: shareD,
+      governing_los: gov, governing_meaning: PLOS.MEANING[gov], area_for_los_c_m2: +(peakQ / cBound).toFixed(1),
+      density_bands: PLOS.bands(k, "density"), vc_bands: PLOS.bands(k, "vc"), intervals };
+  },
+};
+
+/* =====================================================================
+   5. Settings, one run, capacity test (web_core.py)
+   ===================================================================== */
+const MODEL_VERSION = "2026-10-21";
+const ARRIVAL_MODELS = { poisson: "Poisson (random)", deterministic: "Deterministic (regular)", erlang3: "Erlang-3 (smoother)",
+  nhpp_peak: "NHPP (peak build-up)", mmpp2: "MMPP-2 (surge / lull)", train_platoon: "Train platoon (180 s)" };
+const POLICIES = { mixed: "Random lane (walk or stand on either side)", wlsr_soft: "Walk-left-stand-right", wlsr_strict: "Walk-left / stand-right, 90% compliant", stand_only: "Stand-only (no walking, both sides)" };
+const POLICY_SHORT = { mixed: "Walking allowed", wlsr_soft: "Walk-left-stand-right", wlsr_strict: "Walk-left / stand-right", stand_only: "Stand-only" };
+const SLIDERS = {
+  case: { title: "Pedestrian model", cls: "panel-violet", rows: [["arrival_rate", "arrival-rate", 0.01, 2.0, 0.01, 0.46], ["p_group_pct", "p-group (%)", 0, 100, 0.1, 48.7], ["p_walk_pct", "p-walk-bypass (%)", 0, 100, 0.1, 1.3], ["duration_s", "run length (s)", 60, 3600, 30, 600]] },
+  ext: { title: "Extensions", cls: "panel-violet", rows: [["p_baggage_pct", "p-baggage (%)", 0, 100, 0.1, 0], ["group_breakup_prob", "group-breakup-prob", 0, 1, 0.01, 0], ["entry_hesitation_prob", "entry-hesitation-prob", 0, 1, 0.01, 0]] },
+  esc: { title: "Escalator", cls: "panel-pink", rows: [["n_steps", "n-steps", 10, 50, 1, 28], ["step_length_m", "step-length (m)", 0.2, 0.6, 0.01, 0.4], ["step_height_m", "step-height (m)", 0.15, 0.35, 0.01, 0.24], ["escalator_speed_mps", "escalator-speed (m/s)", 0.3, 1.0, "any", 0.5333]] },
+};
+const SLIDER_DEF = {}; Object.values(SLIDERS).forEach(g => g.rows.forEach(r => { SLIDER_DEF[r[0]] = r; }));
+const FIXED = { warmup_s: 0, p_share_step: 1.0, p_no_gap_ok: 1.0, walker_board_gap: false, approach_area_m2: 9.0, los_k: 4, train_headway_s: 180 };
+const GROUP_BREAKUP_BLOCKED_TICKS = 200;
+
+function finishConfig(c) {
+  c = Object.assign({}, c, FIXED, { warmup_s: c.warmup_s || 0 });
+  c.direction = c.down_escalator ? "down" : "up";
+  c.lane_policy = c.walk_left_stand_right ? "wlsr_soft" : "mixed";
+  c.demand_pph = Math.round(c.arrival_rate * 3600 * meanPersonsPerEvent(c.p_group_pct) * 10) / 10;
+  if (!c.seed) c.seed = newSeed();
+  return c;
+}
+function buildParams(cfg, over = {}) {
+  const pol = over.lane_policy || cfg.lane_policy;
+  const p = { arrival_rate: cfg.arrival_rate, p_group_pct: cfg.p_group_pct, p_walk_pct: cfg.p_walk_pct, walk_left_stand_right: false, strategy_I: false,
+    direction: cfg.direction, p_baggage_pct: cfg.p_baggage_pct, entry_hesitation_prob: cfg.entry_hesitation_prob, group_breakup_prob: cfg.group_breakup_prob,
+    group_breakup_blocked_ticks: GROUP_BREAKUP_BLOCKED_TICKS, n_steps: cfg.n_steps, step_length_m: cfg.step_length_m, step_height_m: cfg.step_height_m,
+    escalator_speed_mps: cfg.escalator_speed_mps, p_share_step: cfg.p_share_step, p_no_gap_ok: cfg.p_no_gap_ok, walker_board_gap: cfg.walker_board_gap,
+    wlsr_compliance: 0, seed: cfg.seed, arrival_mode: "poisson", arrival_times: null };
+  if (pol === "wlsr_soft") Object.assign(p, { walk_left_stand_right: true, wlsr_compliance: 0 });
+  else if (pol === "wlsr_strict") Object.assign(p, { walk_left_stand_right: true, wlsr_compliance: 0.9 });
+  else if (pol === "stand_only") p.p_walk_pct = 0;
+  const o = Object.assign({}, over); delete o.lane_policy;
+  return Object.assign(p, o);
+}
+function pedCode(p) {
+  if (p === null) return 0;
+  let c = p.wide ? 2 : p.size === 1 ? 1 : p.size === 2 ? ({ left_right: 3, front_back: 4, diagonal: 5 }[p.formation] || 3) : 6;
+  return c + (p.walk ? 10 : 0);
+}
+
+class LiveRun {
+  constructor(cfg, lanePolicy, seed) {
+    this.cfg = cfg; this.seed = seed === undefined ? cfg.seed : seed;
+    this.times = Arrivals.make(cfg.arrival_model, cfg.arrival_rate, cfg.duration_s, this.seed + 1);
+    this.p = buildParams(cfg, { lane_policy: lanePolicy || cfg.lane_policy, seed: this.seed, arrival_mode: "trace", arrival_times: this.times });
+    this.sim = new EscalatorCA(this.p); this.T = cfg.duration_s;
+    this.ts = { t_s: [], arrived: [], cum_inflow: [], cum_outflow: [], on_escalator: [], queue: [], place_share: [] };
+    this.next = 1.0;
+  }
+  get finished() { return this.sim.t >= this.T - 1e-9; }
+  sample() {
+    const s = this.sim, q = s.queueLen(); let places = 0; const ids = new Set();
+    for (const lane of s.grid) for (const x of lane) if (x !== null) { places++; ids.add(x.id); }
+    const ts = this.ts;
+    ts.t_s.push(Math.round(s.t * 100) / 100); ts.arrived.push(s.cumIn + q); ts.cum_inflow.push(s.cumIn); ts.cum_outflow.push(s.cumOut);
+    ts.on_escalator.push(ids.size); ts.queue.push(q); ts.place_share.push(Math.round(places / (2 * s.N) * 1e4) / 1e4);
+  }
+  advance(ticks) { for (let i = 0; i < ticks; i++) { if (this.finished) break; this.sim.step(); if (this.sim.t >= this.next) { this.sample(); this.next += 1; } } }
+  result() {
+    const s = this.sim, c = this.cfg, ts = this.ts, W = c.warmup_s;
+    const m = summarizeSim(s, W, ts.t_s, ts.queue, ts.on_escalator, ts.cum_outflow);
+    const left = m.queue_at_end_ped || 0;
+    Object.assign(m, { arrival_events: s.traceIdx, event_rate_per_s: c.arrival_rate, persons_arrived: s.cumIn + left, boarded: s.cumIn, exited: s.cumOut, sim_time_s: Math.round(s.t * 100) / 100 });
+    const L = PLOS.assess(ts.t_s, ts.cum_inflow, ts.queue, W, c.escalator_speed_mps, c.step_length_m, c.approach_area_m2, c.los_k);
+    m.peak_vc = L.peak_vc; m.max_density = L.max_density;
+    return { metrics: m, plos: L, seed: this.seed, timeseries: ts, incline_deg: Math.round(Math.atan2(this.p.step_height_m, this.p.step_length_m) * 1800 / Math.PI) / 10,
+             rise_m: Math.round(this.p.n_steps * this.p.step_height_m * 100) / 100, theoretical_capacity_pph: Math.round(theoreticalCapacityPph(this.p)) };
+  }
+}
+function capacityTest(cfg, policy, seed, over = {}) {
+  const p = buildParams(cfg, Object.assign({ lane_policy: policy, arrival_rate: 8.0, seed: 10000 + seed }, over));
+  const sim = new EscalatorCA(p); sim.run(400, 10);
+  const o = sim.history.find(h => h.t >= 100).cum_outflow;
+  return (sim.cumOut - o) / 300 * 3600;
+}
+
+/* =====================================================================
+   6. Stand-only check (run_study / make_verdict)
+   ===================================================================== */
+const STUDY_POLICIES = ["mixed", "wlsr_strict", "stand_only"], SWEEP_WALK = [0, 5, 10, 20, 30, 50];
+const T975 = [12.706, 4.303, 3.182, 2.776, 2.571, 2.447, 2.365, 2.306, 2.262, 2.228, 2.201, 2.179, 2.160, 2.145, 2.131, 2.120, 2.110, 2.101, 2.093, 2.086, 2.080, 2.074, 2.069, 2.064, 2.060, 2.056, 2.052, 2.048, 2.045, 2.042];
+function meanCi(vals) {
+  const v = vals.filter(x => x !== null && x !== undefined && !Number.isNaN(x));
+  if (!v.length) return { mean: null, ci: null, n: 0 };
+  const m = mean(v); if (v.length < 2) return { mean: m, ci: null, n: 1 };
+  const sd = Math.sqrt(v.reduce((s, x) => s + (x - m) ** 2, 0) / (v.length - 1));
+  return { mean: m, ci: (T975[v.length - 2] || 1.96) * sd / Math.sqrt(v.length), n: v.length };
+}
+const clear = (a, b) => a.mean !== null && b.mean !== null && Math.abs(b.mean - a.mean) > Math.sqrt((a.ci || 0) ** 2 + (b.ci || 0) ** 2);
+const STUDY_METRICS = ["throughput_pph", "mean_delay_s", "p95_delay_s", "max_queue_ped", "mean_queue_ped", "mean_ride_s", "mean_ride_walkers_s", "mean_sojourn_s", "peak_vc", "max_density"];
+const pause = () => new Promise(r => setTimeout(r, 0));
+
+async function runStudy(cfg0, progress, reps = 5, capReps = 3) {
+  const cfg = Object.assign({}, cfg0, { warmup_s: Math.min(300, 0.2 * cfg0.duration_s) });
+  const jobs = STUDY_POLICIES.length * (reps + capReps) + SWEEP_WALK.length * 4; let done = 0;
+  const tick = async text => { done++; progress(done / jobs, text); await pause(); };
+  const per = {}, caps = {}, series = {};
+  for (const pol of STUDY_POLICIES) {
+    per[pol] = [];
+    for (let rep = 0; rep < reps; rep++) {
+      const run = new LiveRun(cfg, pol, cfg.seed + rep);
+      while (!run.finished) { run.advance(5000); await pause(); }
+      const r = run.result();
+      per[pol].push(Object.assign({}, r.metrics, { rep, seed: r.seed, los_vc: r.plos.los_vc, los_density: r.plos.los_density, governing_los: r.plos.governing_los }));
+      if (rep === 0) { const t = r.timeseries; series[pol] = { t: t.t_s.filter((_, i) => i % 5 === 0), queue: t.queue.filter((_, i) => i % 5 === 0) }; }
+      await tick(`${POLICY_SHORT[pol]}: replication ${rep + 1} of ${reps}`);
+    }
+    caps[pol] = [];
+    for (let c = 0; c < capReps; c++) { caps[pol].push(capacityTest(cfg, pol, cfg.seed + c)); await tick(`${POLICY_SHORT[pol]}: capacity test ${c + 1} of ${capReps}`); }
+  }
+  const summary = {};
+  for (const pol of STUDY_POLICIES) {
+    const s = {}; STUDY_METRICS.forEach(k => { s[k] = meanCi(per[pol].map(r => r[k])); });
+    s.capacity_pph = meanCi(caps[pol]);
+    s.los_vc = PLOS.letter(s.peak_vc.mean || 0, cfg.los_k, "vc"); s.los_density = PLOS.letter(s.max_density.mean || 0, cfg.los_k, "density");
+    s.governing_los = PLOS.worse(s.los_vc, s.los_density); summary[pol] = s;
+  }
+  const sweep = [];
+  for (const w of SWEEP_WALK) {
+    const row = { walk_pct: w };
+    for (const pol of ["mixed", "wlsr_strict"]) {
+      const v = [];
+      for (let c = 0; c < 2; c++) { v.push(capacityTest(cfg, pol, cfg.seed + 50 + c, { p_walk_pct: w })); await tick(`Walking-share sweep: ${w}% walking, ${POLICY_SHORT[pol]}`); }
+      row[pol] = mean(v);
+    }
+    sweep.push(row);
+  }
+  return { config: cfg, per_rep: per, capacities: caps, summary, series, sweep, verdict: makeVerdict(cfg, summary, sweep), reps, cap_reps: capReps };
+}
+
+function makeVerdict(cfg, S, sweep) {
+  const so = S.stand_only, score = {}, lines = [];
+  for (const base of ["mixed", "wlsr_strict"]) {
+    const b = S[base], capD = so.capacity_pph.mean - b.capacity_pph.mean, capClear = clear(b.capacity_pph, so.capacity_pph);
+    const delD = so.mean_delay_s.mean - b.mean_delay_s.mean, delClear = clear(b.mean_delay_s, so.mean_delay_s);
+    let outcome = "no clear difference";
+    if ((capClear && capD > 0) || (!capClear && delClear && delD < 0)) outcome = "better";
+    else if ((capClear && capD < 0) || (delClear && delD > 0)) outcome = "worse";
+    score[base] = { outcome, cap_diff: capD, cap_pct: b.capacity_pph.mean ? capD / b.capacity_pph.mean * 100 : 0, cap_clear: capClear,
+                    delay_diff: delD, delay_clear: delClear, queue_diff: so.max_queue_ped.mean - b.max_queue_ped.mean };
+  }
+  const now = score.mixed, wl = score.wlsr_strict;
+  const head = { better: "Stand-only is BETTER", worse: "Stand-only is NOT better", "no clear difference": "No clear benefit from stand-only" }[now.outcome];
+  const sub = `compared with current practice (walking allowed on either side, ${fmtG(cfg.p_walk_pct)}% walking) at ${cfg.arrival_rate.toFixed(2)} events/s (≈ ${fmtInt(cfg.demand_pph)} ped/h), ${ARRIVAL_MODELS[cfg.arrival_model].split(" (")[0].toLowerCase()} arrivals.`;
+  const capSentence = (sc, name) => `Saturated capacity is ${fmtInt(Math.abs(sc.cap_diff))} ped/h ${sc.cap_diff > 0 ? "higher" : "lower"} (${sc.cap_pct >= 0 ? "+" : ""}${sc.cap_pct.toFixed(1)}%) than with ${name}` + (sc.cap_clear ? ", a clear difference." : ", within run-to-run noise.");
+  lines.push(capSentence(now, "walking allowed"));
+  lines.push(`Mean queueing delay changes by ${now.delay_diff >= 0 ? "+" : ""}${now.delay_diff.toFixed(1)} s and the peak queue by ${now.queue_diff >= 0 ? "+" : ""}${now.queue_diff.toFixed(0)} ped (${now.delay_clear ? "clear" : "not clear"} at 95%).`);
+  lines.push(capSentence(wl, "a strict walk-left / stand-right rule") + (wl.outcome === "better" ? " So if DMRC were to introduce a stand-right etiquette, stand-only would be the better rule." : ""));
+  const rw = S.mixed.mean_ride_walkers_s.mean, rs = S.stand_only.mean_ride_s.mean;
+  if (rw && rs) lines.push(`Cost to walkers: they ride ${rs.toFixed(1)} s instead of ${rw.toFixed(1)} s (+${(rs - rw).toFixed(1)} s each); only ${fmtG(cfg.p_walk_pct)}% of people are affected.`);
+  lines.push(`PLOS (K=${cfg.los_k}): walking allowed ${S.mixed.governing_los}, walk-left/stand-right ${S.wlsr_strict.governing_los}, stand-only ${S.stand_only.governing_los}.`);
+  let threshold = null;
+  if (sweep.length) {
+    const above = sweep.filter(r => r.wlsr_strict < so.capacity_pph.mean).map(r => r.walk_pct);
+    threshold = above.length ? Math.max(...above) : null;
+    if (threshold === SWEEP_WALK[SWEEP_WALK.length - 1]) lines.push(`Walking-share sweep: stand-only carries more than strict walk-left/stand-right at every walking share tested (0–${threshold}%).`);
+    else if (threshold !== null) lines.push(`Walking-share sweep: stand-only carries more than strict walk-left/stand-right whenever walking is at or below ${threshold}% (tested 0–50%).`);
+  }
+  if (!cfg.walker_board_gap) lines.push("Model note: walkers in this CA never leave a gap in front of them, so walking can only add capacity and the stand-only benefit over walking-allowed is a lower bound.");
+  const rec = { better: "Recommend: consider a peak-hour 'Stand on both sides' rule for this escalator.", worse: "Recommend: keep walking allowed on this escalator.",
+                "no clear difference": "Recommend: no rule change is justified at this demand; test a higher arrival rate." }[now.outcome];
+  return { headline: head, sub, outcome: now.outcome, lines, recommendation: rec, vs: score, threshold_walk_pct: threshold };
+}
+
+/* =====================================================================
+   7. Formatting helpers
+   ===================================================================== */
+const METRIC_INFO = {
+  throughput_pph: ["Throughput", "ped/h", "int", true], capacity_pph: ["Saturated capacity", "ped/h", "int", true],
+  mean_delay_s: ["Mean queueing delay", "s", "1", false], p95_delay_s: ["95th-pct queueing delay", "s", "1", false], max_delay_s: ["Max queueing delay", "s", "1", false],
+  max_queue_ped: ["Peak queue", "ped", "int", false], mean_queue_ped: ["Mean queue", "ped", "1", false], share_time_queue_gt20: ["Time with queue > 20", "%", "pct", false],
+  mean_ride_s: ["Mean ride time", "s", "1", false], mean_ride_walkers_s: ["Mean ride time, walkers", "s", "1", false], mean_sojourn_s: ["Mean total time (wait + ride)", "s", "1", false],
+  mean_occ_ped_per_step: ["Mean step occupancy", "ped/step", "2", null], share_walkers: ["Share walking", "%", "pct", null],
+  peak_vc: ["Peak v/Cf (24-s)", "", "2", false], max_density: ["Max approach density", "ped/m²", "2", false], queue_at_end_ped: ["Queue left at end", "ped", "int", false],
+  persons_arrived: ["Persons arrived", "", "int", null], boarded: ["Boarded", "", "int", null], exited: ["Exited", "", "int", null],
+};
+const fmtInt = v => Math.round(v).toLocaleString("en-US");
+const fmtG = v => String(+(+v).toFixed(4));
+function fmt(key, v) {
+  if (v === null || v === undefined || Number.isNaN(v)) return "–";
+  const f = (METRIC_INFO[key] || [0, 0, "2"])[2];
+  if (f === "int") return fmtInt(v);
+  if (f === "pct") return (v * 100).toFixed(1) + "%";
+  return (+v).toFixed(+f);
+}
+const unit = key => { const u = (METRIC_INFO[key] || [])[1]; return u && u !== "%" ? u : ""; };
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const losChip = (l, size = "") => (l && l !== "no flow") ? `<span class="los ${size} los-${l}">${l}</span>` : `<span class="los ${size} los-none">–</span>`;
+const LOS_COLOR = { A: "var(--los-A)", B: "var(--los-B)", C: "var(--los-C)", D: "var(--los-D)", E: "var(--los-E)", F: "var(--los-F)", "no flow": "rgba(255,255,255,.22)" };
+function timebar(shares) {
+  const parts = Object.entries(shares).filter(([, v]) => v > 0);
+  return `<div class="timebar" role="img" aria-label="Share of time in each LOS">${parts.map(([k, v]) => `<div title="${k}: ${(v * 100).toFixed(0)}%" style="width:${v * 100}%;background:${LOS_COLOR[k]}"></div>`).join("")}</div>
+    <div class="legend">${parts.map(([k, v]) => `<span><i style="background:${LOS_COLOR[k]}"></i>${k === "no flow" ? k : "LOS " + k} ${(v * 100).toFixed(0)}%</span>`).join("")}</div>`;
+}
+function autoLabel(c) {
+  const bits = [`rate ${c.arrival_rate.toFixed(2)}`];
+  for (const [k, r] of Object.entries(SLIDER_DEF)) if (k !== "arrival_rate" && k !== "duration_s" && Math.abs(+c[k] - r[5]) > 1e-9) bits.push(`${r[1].split(" (")[0]} ${fmtG(c[k])}`);
+  if (c.walk_left_stand_right) bits.push("WLSR");
+  if (c.direction === "down") bits.push("down");
+  bits.push(`${c.duration_s.toFixed(0)} s`);
+  return ARRIVAL_MODELS[c.arrival_model].split(" (")[0] + " | " + bits.join(", ");
+}
+let toastTimer = null;
+function toast(msg) { const t = document.getElementById("toast"); t.textContent = msg; t.hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, 3800); }
+
+/* =====================================================================
+   8. Storage: the artifact's private per-viewer store when available,
+      otherwise this browser's localStorage
+   ===================================================================== */
+const LS_KEY = "escalator-ca-records-v1";
+const Store = {
+  mode: "local", col: null, items: [], downloads: null,
+  readLocal() { try { const v = JSON.parse(localStorage.getItem(LS_KEY) || "[]"); return Array.isArray(v) ? v : []; } catch (e) { return []; } },
+  writeLocal() { try { localStorage.setItem(LS_KEY, JSON.stringify(this.items)); return true; } catch (e) { toast("This browser would not store the run (storage full or blocked). Download a backup to keep it."); return false; } },
+  async init() {
+    this.items = this.readLocal();
+    const c = window.claude && window.claude.use ? window.claude : null;
+    if (!c) return;
+    try {
+      const [db, user, downloads] = await Promise.all([c.use("db"), c.use("user"), c.use("downloads")]);
+      this.downloads = downloads;
+      const uid = db && user ? await user.id() : null;
+      if (!uid) return;
+      this.col = db.collection("data/users/" + uid);
+      const snap = await this.col.get();
+      const cloud = snap.docs.map(d => d.data()).filter(x => x && x.kind);
+      const ids = new Set(cloud.map(x => x.id));
+      const extra = this.items.filter(x => !ids.has(x.id));
+      this.mode = "cloud"; this.items = cloud;
+      for (const x of extra) await this.put(x, true);
+      setStoreChip();
+      renderResults();
+    } catch (e) { this.mode = "local"; }
+  },
+  sorted(kind) { return this.items.filter(x => x.kind === kind).sort((a, b) => b.num - a.num); },
+  get(id) { return this.items.find(x => x.id === id) || null; },
+  nextNum(kind) { return Math.max(0, ...this.items.filter(x => x.kind === kind).map(x => x.num)) + 1; },
+  async put(item, silent) {
+    if (!this.items.some(x => x.id === item.id)) this.items.push(item);
+    if (this.mode === "cloud") {
+      try { await this.col.doc(item.id).set(JSON.parse(JSON.stringify(item))); return true; }
+      catch (e) {
+        if (e && e.code === "quota_exceeded") { toast("The online store is full. Delete some runs or download a backup."); return false; }
+        this.mode = "local"; setStoreChip();
+        if (!silent) toast("Could not save online, so this run is saved in this browser only.");
+      }
+    }
+    return this.writeLocal();
+  },
+  async remove(id) {
+    this.items = this.items.filter(x => x.id !== id);
+    if (this.mode === "cloud") { try { await this.col.doc(id).delete(); return; } catch (e) { this.mode = "local"; setStoreChip(); } }
+    this.writeLocal();
+  },
+};
+function setStoreChip() { document.getElementById("store-chip").textContent = Store.mode === "cloud" ? "Runs saved to your account" : "Runs saved in this browser"; }
+
+async function offerFile(filename, text) {
+  if (Store.downloads) {
+    try { await Store.downloads.save({ filename, data: text }); toast("Saved " + filename); }
+    catch (e) { if (!e || e.code !== "declined") toast("The file could not be saved here (" + ((e && e.code) || "unavailable") + ")."); }
+    return;
+  }
+  if (window.claude) { toast("Downloads are not available in this view."); return; }
+  const url = URL.createObjectURL(new Blob([text], { type: "text/plain" })), a = document.createElement("a");
+  a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+const toCsv = rows => { if (!rows.length) return ""; const cols = Object.keys(rows[0]); const cell = v => (v === null || v === undefined) ? "" : (/[",\n]/.test(String(v)) ? `"${String(v).replace(/"/g, '""')}"` : String(v));
+  return [cols.join(","), ...rows.map(r => cols.map(c => cell(r[c])).join(","))].join("\n"); };
+const seriesRows = ts => ts.t_s.map((t, i) => { const o = {}; Object.keys(ts).forEach(k => { o[k] = ts[k][i]; }); return o; });
+
+/* stored runs keep a compact series; rebuild the full one when shown */
+function packSeries(ts) { return { cum_inflow: ts.cum_inflow, cum_outflow: ts.cum_outflow, on_escalator: ts.on_escalator, queue: ts.queue, place_share: ts.place_share }; }
+function unpackSeries(s) { const n = s.queue.length; return { t_s: Array.from({ length: n }, (_, i) => i + 1), arrived: s.cum_inflow.map((x, i) => x + s.queue[i]),
+  cum_inflow: s.cum_inflow, cum_outflow: s.cum_outflow, on_escalator: s.on_escalator, queue: s.queue, place_share: s.place_share }; }
+function runRecord(cfg, res) {
+  const num = Store.nextNum("run"), P = Object.assign({}, res.plos); const intervals = P.intervals; delete P.intervals;
+  return { id: "run-" + String(num).padStart(4, "0"), kind: "run", num, label: autoLabel(cfg), saved_at: new Date().toISOString().slice(0, 16).replace("T", " "),
+    model_version: MODEL_VERSION + " (JS)", config: cfg, metrics: res.metrics, plos: P, intervals, series: packSeries(res.timeseries),
+    incline_deg: res.incline_deg, rise_m: res.rise_m, theoretical_capacity_pph: res.theoretical_capacity_pph };
+}
+
+/* =====================================================================
+   9. Charts
+   ===================================================================== */
+const C = { white: "#ffffff", mint: "#6dffc4", violet: "#b98cff", pink: "#ff5fa8", gold: "#ffd76a", cyan: "#5ff2ff", grid: "rgba(255,255,255,.16)",
+            los: { A: "#5dffb0", B: "#b9ff7a", C: "#ffe066", D: "#ffa64d", E: "#ff5f8f", F: "#ff2e63" } };
+const SERIES = [C.cyan, C.pink, C.violet, C.mint, C.gold, C.white];
+const charts = {};
+if (window.Chart) {
+  Chart.defaults.font.family = '"Inter", "Helvetica Neue", Arial, sans-serif'; Chart.defaults.font.size = 12; Chart.defaults.font.weight = 500;
+  Chart.defaults.color = C.white; Chart.defaults.borderColor = C.grid; Chart.defaults.scale.grid.color = C.grid;
+  Chart.defaults.plugins.legend.labels.boxWidth = 12; Chart.defaults.plugins.legend.labels.boxHeight = 12; Chart.defaults.plugins.legend.labels.color = C.white;
+  Chart.defaults.plugins.tooltip.backgroundColor = "rgba(58,44,54,.92)"; Chart.defaults.plugins.tooltip.borderColor = "rgba(95,242,255,.6)"; Chart.defaults.plugins.tooltip.borderWidth = 1;
+  Chart.defaults.maintainAspectRatio = false; Chart.defaults.animation = false; Chart.defaults.elements.line.borderWidth = 2.4;
+  Chart.register({ id: "neonGlow",
+    beforeDatasetDraw(chart, args) { const ds = chart.data.datasets[args.index], c = Array.isArray(ds.borderColor) ? null : ds.borderColor; chart.ctx.save(); chart.ctx.shadowColor = c || "rgba(255,255,255,.6)"; chart.ctx.shadowBlur = chart.config.type === "bar" ? 8 : 12; },
+    afterDatasetDraw(chart) { chart.ctx.restore(); } });
+}
+function chart(id, config) { if (charts[id]) charts[id].destroy(); const el = document.getElementById(id); if (!el || !window.Chart) return null; charts[id] = new Chart(el, config); return charts[id]; }
+const pts = (x, y, maxN = 1500) => { const step = Math.max(1, Math.ceil(x.length / maxN)), out = []; for (let i = 0; i < x.length; i += step) out.push({ x: x[i], y: y[i] }); return out; };
+const axX = (t = "Time [s]") => ({ type: "linear", title: { display: true, text: t } });
+const axY = (t, extra = {}) => Object.assign({ beginAtZero: true, title: { display: true, text: t } }, extra);
+const line = (label, data, color, extra = {}) => Object.assign({ label, data, borderColor: color, backgroundColor: color, borderWidth: 2.4, pointRadius: 0 }, extra);
+function bandPlugin(bands, scaleId, alpha = 0.16) {
+  return { id: "bands" + scaleId, beforeDatasetsDraw(ch) {
+    const s = ch.scales[scaleId], a = ch.chartArea, ctx = ch.ctx; if (!s) return; ctx.save();
+    for (const [lo, hi, lab] of bands) {
+      const yTop = s.getPixelForValue(hi === null ? s.max : Math.min(hi, s.max)), yBot = s.getPixelForValue(Math.max(lo, s.min));
+      if (yBot <= a.top || lo > s.max) continue;
+      const top = Math.max(yTop, a.top), h = Math.min(yBot, a.bottom) - top;
+      ctx.globalAlpha = alpha; ctx.fillStyle = C.los[lab]; ctx.fillRect(a.left, top, a.right - a.left, h);
+      if (h >= 14) { ctx.globalAlpha = 0.85; ctx.fillStyle = C.white; ctx.font = "600 10px Inter, sans-serif"; ctx.textAlign = "right"; ctx.fillText("LOS " + lab, a.right - 4, top + 11); }
+    }
+    ctx.restore(); } };
+}
+function whiskerPlugin(errors) {
+  return { id: "whiskers", afterDatasetsDraw(ch) {
+    const meta = ch.getDatasetMeta(0), y = ch.scales.y, ctx = ch.ctx; ctx.save(); ctx.strokeStyle = C.white; ctx.lineWidth = 1.6;
+    meta.data.forEach((bar, i) => { const v = ch.data.datasets[0].data[i], e = errors[i]; if (v == null || e == null) return;
+      const t = y.getPixelForValue(v + e), b = y.getPixelForValue(Math.max(0, v - e));
+      ctx.beginPath(); ctx.moveTo(bar.x, t); ctx.lineTo(bar.x, b); ctx.moveTo(bar.x - 8, t); ctx.lineTo(bar.x + 8, t); ctx.moveTo(bar.x - 8, b); ctx.lineTo(bar.x + 8, b); ctx.stroke(); });
+    ctx.restore(); } };
+}
+
+/* =====================================================================
+   10. Views
+   ===================================================================== */
+const VIEWS = ["dashboard", "results", "run", "compare", "study", "method"];
+function show(view) {
+  VIEWS.forEach(v => { document.getElementById("view-" + v).hidden = v !== view; });
+  const navFor = { dashboard: "dashboard", results: "results", run: "results", compare: "results", study: "results", method: "method" }[view];
+  ["dashboard", "results", "method"].forEach(n => document.getElementById("nav-" + n).classList.toggle("active", n === navFor));
+  if (view === "results") renderResults();
+  if (view === "dashboard") setTimeout(() => drawGrid(live), 0);
+  window.scrollTo(0, 0);
+}
+document.addEventListener("click", e => { const b = e.target.closest("[data-go]"); if (b) show(b.dataset.go); });
+
+/* ----------------------------------------------------- dashboard */
+const $ = id => document.getElementById(id);
+const CELL = { 0: "#3d2a4a", 1: "#ff3b5c", 2: "#ffa31a", 3: "#c77dff", 4: "#ffe14d", 5: "#ff7ac8", 6: "#3dffa8" };
+const FRAME_MS = 50;
+let live = null, running = false, finished = false, timer = null, savedRec = null, lastChartDraw = 0;
+let S = null;
+
+function buildPanels() {
+  const host = $("panels");
+  host.innerHTML = Object.values(SLIDERS).map(g => `<div class="card ${g.cls}"><h3 class="sub">${g.title}</h3>${g.rows.map(([k, lab, lo, hi, step, def]) =>
+    `<div class="slider"><label for="s-${k}"><span>${lab}</span><output id="o-${k}"></output></label><input type="range" id="s-${k}" min="${lo}" max="${hi}" step="${step}" value="${def}" data-key="${k}"></div>`).join("")}</div>`).join("")
+    + `<div class="card panel-violet"><h3 class="sub">Arrival model</h3><div class="radio-list">${Object.entries(ARRIVAL_MODELS).map(([k, lab], i) =>
+      `<label class="check"><input type="radio" name="arrival_model" id="am-${k}" value="${k}" ${i === 0 ? "checked" : ""}> ${lab}</label>`).join("")}</div><p class="small muted" style="margin:10px 0 0">Applied at Setup.</p></div>`;
+  host.querySelectorAll("input[type=range]").forEach(r => {
+    const dec = r.step === "any" ? 2 : (r.step.split(".")[1] || "").length, out = $("o-" + r.dataset.key);
+    const sh = () => { out.textContent = (+r.value).toFixed(dec); }; sh();
+    r.addEventListener("input", () => { sh(); markPending(); });
+  });
+  host.querySelectorAll("input[type=radio]").forEach(r => r.addEventListener("change", markPending));
+  ["c-wlsr", "c-down"].forEach(id => $(id).addEventListener("change", markPending));
+}
+function markPending() { if (live) $("pending").hidden = false; }
+function readControls() {
+  const c = {};
+  Object.keys(SLIDER_DEF).forEach(k => { c[k] = +$("s-" + k).value; });
+  c.n_steps = Math.round(c.n_steps);
+  c.arrival_model = (document.querySelector("input[name=arrival_model]:checked") || {}).value || "poisson";
+  c.walk_left_stand_right = $("c-wlsr").checked; c.down_escalator = $("c-down").checked;
+  return c;
+}
+function setControls(c) {
+  Object.keys(SLIDER_DEF).forEach(k => { if (c[k] !== undefined) { const r = $("s-" + k); r.value = c[k]; r.dispatchEvent(new Event("input")); } });
+  const am = $("am-" + c.arrival_model); if (am) am.checked = true;
+  $("c-wlsr").checked = !!c.walk_left_stand_right; $("c-down").checked = c.direction === "down" || !!c.down_escalator;
+}
+const speed = $("speed");
+function showSpeed() { const x = speed.value * TS_M * (1000 / FRAME_MS); $("speed-v").textContent = `${speed.value} ticks / frame · ≈ ${x < 1 ? x.toFixed(1) : x.toFixed(0)}× real time`; }
+speed.addEventListener("input", showSpeed);
+
+const mkLive = (id, sets, ylab) => chart(id, { type: "line",
+  data: { datasets: sets.map(([label, color, stepped]) => ({ label, data: [], borderColor: color, backgroundColor: color, borderWidth: 2.2, pointRadius: 0, stepped: stepped ? "after" : false })) },
+  options: { scales: { x: { type: "linear", min: 0, title: { display: true, text: "Time [s]" } }, y: { beginAtZero: true, title: { display: true, text: ylab } } },
+             plugins: { legend: { display: sets.length > 1, position: "top", align: "start" } } } });
+function resetCharts() {
+  S = { t: [], inflow: [], outflow: [], dens: [], flowT: [], flow: [] };
+  mkLive("ch-cum", [["inflow", C.mint], ["outflow", C.pink]], "Pedestrians");
+  mkLive("ch-dens", [["density", C.cyan]], "Share of places occupied");
+  mkLive("ch-flow", [["flow", C.gold, true]], "Ped/s");
+}
+function drawLiveCharts(force) {
+  const now = performance.now(); if (!force && now - lastChartDraw < 250) return; lastChartDraw = now;
+  const xy = (x, y) => x.map((v, i) => ({ x: v, y: y[i] }));
+  const cc = charts["ch-cum"], cd = charts["ch-dens"], cf = charts["ch-flow"]; if (!cc) return;
+  cc.data.datasets[0].data = xy(S.t, S.inflow); cc.data.datasets[1].data = xy(S.t, S.outflow);
+  cd.data.datasets[0].data = xy(S.t, S.dens); cf.data.datasets[0].data = xy(S.flowT, S.flow);
+  const xmax = Math.ceil(Math.max(10, S.t.length ? S.t[S.t.length - 1] : 10));
+  [cc, cd, cf].forEach(c => { c.options.scales.x.max = xmax; c.update("none"); });
+}
+let since = 0;
+function pullSamples() {
+  const ts = live.ts;
+  for (let i = since; i < ts.t_s.length; i++) {
+    S.t.push(ts.t_s[i]); S.inflow.push(ts.cum_inflow[i]); S.outflow.push(ts.cum_outflow[i]); S.dens.push(ts.place_share[i]);
+    const n = S.t.length; if (n % 2 === 0) { S.flowT.push(S.t[n - 1]); S.flow.push((S.outflow[n - 1] - (n >= 3 ? S.outflow[n - 3] : 0)) / 2); }
+  }
+  since = ts.t_s.length;
+}
+function updateMonitors() {
+  const ts = live.ts, co = ts.cum_outflow, n = co.length;
+  $("m-flow").textContent = n ? ((co[n - 1] - (n >= 3 ? co[n - 3] : 0)) / 2).toFixed(2) : "N/A";
+  $("m-density").textContent = n ? ts.place_share[n - 1].toFixed(2) : "N/A";
+  $("m-queue").textContent = live.sim.queueLen();
+  $("time-text").textContent = `Time: ${live.sim.t.toFixed(1)} / ${live.T.toFixed(0)} s   |   arrivals: ${ARRIVAL_MODELS[live.cfg.arrival_model]}   |   breakups: ${live.sim.breakups}`;
+}
+function drawGrid(run) {
+  const canvas = $("ca"), ctx = canvas.getContext("2d"), dpr = window.devicePixelRatio || 1, W = canvas.clientWidth, H = canvas.clientHeight;
+  if (!W) return;
+  if (canvas.width !== Math.round(W * dpr) || canvas.height !== Math.round(H * dpr)) { canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr); }
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.fillStyle = "#24152e"; ctx.fillRect(0, 0, W, H);
+  const N = run ? run.sim.N : +$("s-n_steps").value;
+  const qW = Math.min(150, W * 0.18), x0 = qW + 14, gw = W - x0 - 6, cw = gw / N, ch = Math.min((H - 34) / 2, cw * 2.2), y0 = (H - 2 * ch) / 2 + 6;
+  const q = run ? run.sim.queueLen() : 0;
+  ctx.fillStyle = "#3a2650"; ctx.fillRect(4, y0 - 4, qW, 2 * ch + 8);
+  ctx.fillStyle = "#ffd9ec"; ctx.font = "600 11px Inter, sans-serif"; ctx.textAlign = "left"; ctx.fillText("QUEUE " + q, 8, y0 - 10);
+  const cols = Math.max(1, Math.floor((qW - 8) / 11)), rows = Math.max(1, Math.floor((2 * ch) / 11)), shown = Math.min(q, cols * rows);
+  for (let i = 0; i < shown; i++) { ctx.beginPath(); ctx.arc(4 + qW - 8 - (i % cols) * 11, y0 + 6 + Math.floor(i / cols) * 11, 4, 0, 7); ctx.fillStyle = "#ff3b5c"; ctx.fill(); }
+  if (q > shown) { ctx.fillStyle = "#fff"; ctx.fillText("+" + (q - shown), 8, y0 + 2 * ch + 2); }
+  ctx.fillStyle = "#ffd9ec"; ctx.textAlign = "right"; ctx.font = "10px Inter, sans-serif";
+  ctx.fillText("left", x0 - 2, y0 + ch / 2 + 3); ctx.fillText("right", x0 - 2, y0 + 1.5 * ch + 3);
+  for (let lane = 0; lane < 2; lane++) for (let s = 0; s < N; s++) {
+    const code = run ? pedCode(run.sim.grid[lane][s]) : 0, base = code % 10, x = x0 + s * cw + 2, y = y0 + lane * ch;
+    ctx.fillStyle = CELL[base]; ctx.fillRect(x, y, cw, ch);
+    ctx.strokeStyle = "rgba(95,242,255,.28)"; ctx.lineWidth = 0.6; ctx.strokeRect(x, y, cw, ch);
+    if (code >= 10) { ctx.beginPath(); ctx.arc(x + cw / 2, y + ch / 2, Math.max(2, Math.min(cw, ch) * 0.16), 0, 7); ctx.fillStyle = "#fff"; ctx.fill(); }
+  }
+  ctx.fillStyle = "#ffd9ec"; ctx.textAlign = "left"; ctx.fillText("step 1", x0 + 2, y0 + 2 * ch + 14);
+  ctx.textAlign = "right"; ctx.fillText("step " + N + " → exit", x0 + gw + 2, y0 + 2 * ch + 14);
+}
+window.addEventListener("resize", () => drawGrid(live));
+
+function setup() {
+  clearTimeout(timer); running = false; finished = false; savedRec = null; since = 0;
+  $("b-go").textContent = "Go"; $("b-save").textContent = "Save run now"; $("result-panel").hidden = true; $("pending").hidden = true;
+  const cfg = finishConfig(Object.assign(readControls(), { seed: newSeed() }));
+  live = new LiveRun(cfg);
+  resetCharts(); drawGrid(live);
+  const p = live.p;
+  $("incline-text").textContent = `incline: ${(Math.atan2(p.step_height_m, p.step_length_m) * 180 / Math.PI).toFixed(1)}°  |  escalator inverse speed: ${live.sim.invSpeed.toFixed(3)} s/step  |  total rise: ${(p.n_steps * p.step_height_m).toFixed(2)} m`;
+  $("strip-info").textContent = `${live.times.length} arrival events generated · seed ${cfg.seed}`;
+  $("m-flow").textContent = "N/A"; $("m-density").textContent = "N/A"; $("m-queue").textContent = "0";
+  $("time-text").textContent = `Time: 0.0 / ${live.T.toFixed(0)} s   |   arrivals: ${ARRIVAL_MODELS[cfg.arrival_model]}, ${live.times.length} events generated`;
+}
+function frame() {
+  if (!running) return;
+  const t0 = performance.now();
+  live.advance(+speed.value); pullSamples(); updateMonitors(); drawGrid(live); drawLiveCharts(live.finished);
+  if (live.finished) { running = false; finished = true; $("b-go").textContent = "Finished"; saveLive(true); return; }
+  timer = setTimeout(frame, Math.max(0, FRAME_MS - (performance.now() - t0)));   // one frame per 50 ms, like the matplotlib dashboard
+}
+async function saveLive(auto) {
+  if (!live || live.sim.t < 1 || !live.ts.t_s.length) { $("b-save").textContent = "Run it first"; return; }
+  if (savedRec) { $("b-save").textContent = `Already saved as run #${savedRec.num}`; return; }
+  const rec = runRecord(live.cfg, live.result());
+  savedRec = rec;
+  $("b-save").textContent = "Saving…";
+  await Store.put(rec);
+  $("b-save").textContent = `${auto ? "Finished - saved" : "Saved"} as run #${rec.num}`;
+  showResultPanel(rec);
+}
+function showResultPanel(rec) {
+  const P = rec.plos, m = rec.metrics, L = $("r-los");
+  L.textContent = P.governing_los; L.className = "los big los-" + P.governing_los;
+  $("r-saved").textContent = `Run #${rec.num} saved`; $("r-title").textContent = "PLOS " + P.governing_los; $("r-meaning").textContent = P.governing_meaning;
+  $("r-parts").textContent = `Escalator v/Cf: LOS ${P.los_vc} (peak 24-s v/Cf ${P.peak_vc.toFixed(2)}) · Approach area: LOS ${P.los_density} (max ${P.max_density.toFixed(2)} ped/m² over 9 m²) · Yadav & Rastogi (2025), K = 4.`;
+  $("r-kpis").innerHTML = ["throughput_pph", "mean_delay_s", "max_queue_ped", "mean_sojourn_s"].map(k =>
+    `<div class="kpi"><div class="k">${METRIC_INFO[k][0]}</div><div class="v">${fmt(k, m[k])}<span class="u">${unit(k)}</span></div></div>`).join("");
+  $("r-open").onclick = () => openRun(rec.id);
+  $("result-panel").hidden = false;
+}
+$("b-setup").addEventListener("click", setup);
+$("b-go").addEventListener("click", () => {
+  if (finished) { $("b-go").textContent = "Finished - press Setup"; return; }
+  if (!live) setup();
+  running = !running; $("b-go").textContent = running ? "Pause" : "Go";
+  if (running) frame(); else clearTimeout(timer);
+});
+$("b-save").addEventListener("click", () => saveLive(false));
+
+let studyBusy = false;
+$("b-study").addEventListener("click", async () => {
+  if (studyBusy) return;
+  studyBusy = true; const btn = $("b-study"); btn.disabled = true; btn.textContent = "Running…";
+  $("study-progress").hidden = false; $("study-bar").style.width = "0";
+  try {
+    const cfg = finishConfig(Object.assign(readControls(), { seed: newSeed() }));
+    const res = await runStudy(cfg, (f, msg) => { $("study-bar").style.width = Math.round(f * 100) + "%"; $("study-msg").textContent = `${msg} · ${Math.round(f * 100)}%`; });
+    const num = Store.nextNum("study");
+    const rec = Object.assign({ id: "study-" + String(num).padStart(4, "0"), kind: "study", num,
+      label: `Stand-only check · ${ARRIVAL_MODELS[cfg.arrival_model].split(" (")[0]} · rate ${cfg.arrival_rate.toFixed(2)} · ${fmtG(cfg.p_walk_pct)}% walking · ${cfg.duration_s.toFixed(0)} s`,
+      saved_at: new Date().toISOString().slice(0, 16).replace("T", " "), model_version: MODEL_VERSION + " (JS)" }, res);
+    await Store.put(rec);
+    openStudy(rec.id);
+  } catch (e) { toast("The check stopped: " + (e && e.message ? e.message : e)); }
+  finally { studyBusy = false; btn.disabled = false; btn.textContent = "Run stand-only check"; $("study-progress").hidden = true; }
+});
+
+/* ----------------------------------------------------- results list */
+function renderResults() {
+  const runs = Store.sorted("run"), studies = Store.sorted("study");
+  $("runs-table").innerHTML = runs.length ? `<div class="table-wrap"><table>
+    <thead><tr><th></th><th>#</th><th>Run</th><th>Lane rule</th><th class="num">Rate [ev/s]</th><th class="num">Run length</th><th class="num">Throughput</th><th class="num">Mean delay</th><th class="num">Peak queue</th><th class="num">Peak v/Cf</th><th>PLOS</th><th>Saved</th></tr></thead>
+    <tbody>${runs.map(r => { const m = r.metrics; return `<tr>
+      <td><input type="checkbox" class="cmp-box" value="${esc(r.id)}" aria-label="Select run ${r.num}"></td><td>${r.num}</td>
+      <td><button type="button" class="linkbtn" data-run="${esc(r.id)}">${esc(r.label)}</button></td>
+      <td>${POLICY_SHORT[r.config.lane_policy] || ""}</td><td class="num">${(+r.config.arrival_rate).toFixed(2)}</td><td class="num">${(+m.sim_time_s).toFixed(0)} s</td>
+      <td class="num">${fmt("throughput_pph", m.throughput_pph)}</td><td class="num">${fmt("mean_delay_s", m.mean_delay_s)} s</td><td class="num">${fmt("max_queue_ped", m.max_queue_ped)}</td>
+      <td class="num">${(+r.plos.peak_vc).toFixed(2)}</td><td>${losChip(r.plos.governing_los)}</td><td class="small muted">${esc(r.saved_at)}</td></tr>`; }).join("")}</tbody></table></div>`
+    : `<div class="card empty"><h2 class="title">No runs yet</h2><p class="muted">Runs appear here as soon as they finish on the dashboard.</p><button type="button" class="btn" data-go="dashboard">Open the dashboard</button></div>`;
+  $("studies-table").innerHTML = studies.length ? `<div class="table-wrap"><table>
+    <thead><tr><th>#</th><th>Check</th><th>Verdict</th><th class="num">Capacity: walking allowed</th><th class="num">Capacity: stand-only</th><th class="num">Change</th><th>PLOS (allowed → stand-only)</th><th>Saved</th><th></th></tr></thead>
+    <tbody>${studies.map(s => { const S2 = s.summary; return `<tr><td>${s.num}</td><td><button type="button" class="linkbtn" data-study="${esc(s.id)}">${esc(s.label)}</button></td>
+      <td><span class="tag">${esc(s.verdict.outcome)}</span></td><td class="num">${fmt("capacity_pph", S2.mixed.capacity_pph.mean)}</td><td class="num">${fmt("capacity_pph", S2.stand_only.capacity_pph.mean)}</td>
+      <td class="num">${s.verdict.vs.mixed.cap_pct >= 0 ? "+" : ""}${s.verdict.vs.mixed.cap_pct.toFixed(1)}%</td><td>${losChip(S2.mixed.governing_los)} → ${losChip(S2.stand_only.governing_los)}</td>
+      <td class="small muted">${esc(s.saved_at)}</td><td><button type="button" class="btn small danger" data-del="${esc(s.id)}">Delete</button></td></tr>`; }).join("")}</tbody></table></div>`
+    : `<p class="muted">None yet. Start one from the bottom of the <button type="button" class="linkbtn" data-go="dashboard">Run page</button>.</p>`;
+  document.querySelectorAll(".cmp-box").forEach(b => b.addEventListener("change", updCmp)); updCmp();
+}
+function selectedRuns() { return [...document.querySelectorAll(".cmp-box:checked")].map(b => b.value); }
+function updCmp() { const n = selectedRuns().length; $("b-compare").disabled = n < 2 || n > 6; $("cmp-n").textContent = n ? n + " selected" : "Select 2–6 runs"; }
+document.addEventListener("click", e => {
+  const r = e.target.closest("[data-run]"); if (r) { openRun(r.dataset.run); return; }
+  const s = e.target.closest("[data-study]"); if (s) { openStudy(s.dataset.study); return; }
+  const d = e.target.closest("[data-del]");
+  if (d) {
+    if (d.dataset.armed !== "1") { d.dataset.armed = "1"; d.textContent = "Confirm delete"; setTimeout(() => { if (d.isConnected) { d.dataset.armed = ""; d.textContent = "Delete"; } }, 4000); return; }
+    Store.remove(d.dataset.del).then(() => { toast("Deleted"); show("results"); });
+  }
+});
+$("b-compare").addEventListener("click", () => openCompare(selectedRuns()));
+$("b-export-csv").addEventListener("click", () => {
+  const rows = Store.sorted("run").reverse().map(r => Object.assign({ run: r.num, label: r.label, saved_at: r.saved_at, model_version: r.model_version },
+    Object.fromEntries(Object.entries(r.config).map(([k, v]) => ["set_" + k, v])), r.metrics,
+    { plos_governing: r.plos.governing_los, plos_vc: r.plos.los_vc, plos_density: r.plos.los_density, reference_capacity_ped_m_min: r.plos.reference_capacity_ped_m_min, area_for_los_c_m2: r.plos.area_for_los_c_m2 }));
+  if (!rows.length) { toast("No runs to export yet."); return; }
+  offerFile("escalator_runs.csv", toCsv(rows));
+});
+$("b-backup").addEventListener("click", () => {
+  if (!Store.items.length) { toast("Nothing saved yet."); return; }
+  offerFile("escalator_ca_backup.json", JSON.stringify({ app: "escalator-ca", version: 1, items: Store.items }));
+});
+$("f-restore").addEventListener("change", async e => {
+  const f = e.target.files[0]; if (!f) return;
+  try {
+    const data = JSON.parse(await f.text()), items = (data && Array.isArray(data.items)) ? data.items : [];
+    let n = 0;
+    for (const it of items) {
+      if (!it || (it.kind !== "run" && it.kind !== "study") || typeof it.id !== "string" || !/^(run|study)-\d{1,6}$/.test(it.id) || Store.get(it.id)) continue;
+      await Store.put(it, true); n++;
+    }
+    toast(n ? `Restored ${n} item${n === 1 ? "" : "s"}.` : "Nothing new in that backup.");
+    renderResults();
+  } catch (err) { toast("That file is not an Escalator CA backup."); }
+  e.target.value = "";
+});
+
+/* ----------------------------------------------------- one run */
+function openRun(id) {
+  const r = Store.get(id); if (!r) { toast("That run is no longer saved."); return; }
+  const c = r.config, m = r.metrics, P = r.plos, ts = unpackSeries(r.series);
+  const kpis = [["throughput_pph", "after warm-up"], ["mean_delay_s", "waiting to board"], ["p95_delay_s", "95% wait less"], ["max_queue_ped", "at the entry"],
+    ["mean_sojourn_s", "wait + ride"], ["mean_ride_s", "boarding to exit"], ["mean_occ_ped_per_step", "theoretical max 2"], ["share_time_queue_gt20", "of the time"]];
+  const allRes = ["persons_arrived", "boarded", "exited", "queue_at_end_ped", "throughput_pph", "mean_delay_s", "p95_delay_s", "max_delay_s", "max_queue_ped", "mean_queue_ped",
+    "share_time_queue_gt20", "mean_ride_s", "mean_ride_walkers_s", "mean_sojourn_s", "mean_occ_ped_per_step", "share_walkers", "peak_vc", "max_density"];
+  const v = $("view-run");
+  v.innerHTML = `
+  <div class="head"><div class="crumbs"><button type="button" data-go="results">Results</button> / Run ${r.num}</div><h1>Run ${r.num}</h1>
+    <p style="font-weight:400">${esc(r.label)}</p>
+    <div class="btn-row" style="margin-top:14px"><span class="tag">${ARRIVAL_MODELS[c.arrival_model]}</span><span class="tag">${POLICY_SHORT[c.lane_policy]}</span>
+      <span class="tag">${(+c.arrival_rate).toFixed(2)} events/s</span><span class="tag">${c.direction}-escalator</span><span class="tag">${(+m.sim_time_s).toFixed(0)} of ${(+c.duration_s).toFixed(0)} s</span>
+      <span class="tag">seed ${c.seed}</span><span class="tag">saved ${esc(r.saved_at)}</span></div></div>
+  <div class="section"><div class="card paper">
+    <div class="plos-hero">${losChip(P.governing_los, "big")}<div><h2 class="title" style="margin-bottom:6px">PLOS ${P.governing_los}</h2><p class="lead" style="margin:0">${P.governing_meaning}</p>
+      <p class="small muted" style="margin:8px 0 0">Escalator Level of Service after Yadav &amp; Rastogi (2025), K = ${P.k} scale. The overall grade is the worse of the escalator (v/Cf) and approach-area (density) grades.</p></div></div>
+    <div class="plos-parts">
+      <div class="plos-part">${losChip(P.los_vc, "mid")}<div><b>On the escalator · v/Cf</b><br><span class="small">Peak 24-s v/Cf = <b>${P.peak_vc.toFixed(2)}</b> (mean ${P.mean_vc.toFixed(2)}); Cf = ${P.reference_capacity_ped_m_min} ped/m/min</span>${timebar(P.share_time_vc)}</div></div>
+      <div class="plos-part">${losChip(P.los_density, "mid")}<div><b>Approach area · density</b><br><span class="small">Max ${P.max_density.toFixed(2)} ped/m² (95th pct ${(+P.p95_density).toFixed(2)}) over ${P.approach_area_m2} m²</span>${timebar(P.share_time_density)}</div></div>
+      <div class="plos-part off">${losChip(null, "mid")}<div><b>Approach speed</b><br><span class="small">Not produced by the CA (no walking space before the escalator). Measure from video.</span></div></div>
+    </div>
+    <p class="small" style="margin:14px 0 0">Design check: the peak queue of <b>${fmt("max_queue_ped", m.max_queue_ped)}</b> people needs about <b>${P.area_for_los_c_m2} m²</b> of clear space in front of the escalator to stay at LOS C or better${P.area_for_los_c_m2 > P.approach_area_m2 ? `, more than the ${P.approach_area_m2} m² assumed, so the queue would spill onto the platform.` : `, within the ${P.approach_area_m2} m² assumed.`}</p>
+  </div></div>
+  <div class="section grid g4">${kpis.map(([k, note]) => `<div class="kpi"><div class="k">${METRIC_INFO[k][0]}</div><div class="v">${fmt(k, m[k])}<span class="u">${unit(k)}</span></div><div class="note">${note}</div></div>`).join("")}</div>
+  <div class="section grid g2">
+    <div class="card paper"><h3 class="sub">Cumulative flow</h3><div class="chart-box"><canvas id="rc-cum"></canvas></div><div class="chart-note">Gap between arrived and boarded = queue; between boarded and exited = people on the escalator.</div></div>
+    <div class="card paper"><h3 class="sub">Queue and approach density</h3><div class="chart-box"><canvas id="rc-queue"></canvas></div><div class="chart-note">Coloured bands: density LOS thresholds (right axis).</div></div>
+    <div class="card paper"><h3 class="sub">v / Cf in 24-s intervals</h3><div class="chart-box"><canvas id="rc-vc"></canvas></div><div class="chart-note">Each bar is one count interval, coloured by its LOS. The escalator is rated on the peak bar.</div></div>
+    <div class="card paper"><h3 class="sub">Escalator occupancy</h3><div class="chart-box"><canvas id="rc-occ"></canvas></div><div class="chart-note">Share of the 2 × ${c.n_steps} places occupied.</div></div>
+  </div>
+  <div class="section grid g2">
+    <div><h2 class="title">All results</h2><div class="table-wrap"><table><tbody>
+      ${allRes.map(k => `<tr><td>${METRIC_INFO[k][0]}</td><td class="num">${fmt(k, m[k])} <span class="muted">${unit(k)}</span></td></tr>`).join("")}
+      <tr><td>Bypasses / blocked walks / breakups</td><td class="num">${m.bypass_count} / ${m.blocked_walk_count} / ${m.group_breakup_count}</td></tr>
+      <tr><td>Theoretical capacity</td><td class="num">${fmtInt(r.theoretical_capacity_pph)} <span class="muted">ped/h</span></td></tr></tbody></table></div></div>
+    <div><h2 class="title">Settings</h2><div class="table-wrap"><table><tbody>
+      <tr><td>Arrival model</td><td>${ARRIVAL_MODELS[c.arrival_model]}</td></tr>
+      <tr><td>arrival-rate</td><td>${c.arrival_rate} events/s (${m.arrival_events} events; ≈ ${fmtInt(c.demand_pph)} ped/h)</td></tr>
+      <tr><td>p-group / p-walk-bypass</td><td>${c.p_group_pct}% / ${c.p_walk_pct}%</td></tr>
+      <tr><td>run length</td><td>${(+c.duration_s).toFixed(0)} s</td></tr>
+      <tr><td>p-baggage / group-breakup-prob / entry-hesitation-prob</td><td>${c.p_baggage_pct}% / ${c.group_breakup_prob} / ${c.entry_hesitation_prob}</td></tr>
+      <tr><td>n-steps / step-length / step-height</td><td>${c.n_steps} / ${c.step_length_m} m / ${c.step_height_m} m (${r.incline_deg}°, rise ${r.rise_m} m)</td></tr>
+      <tr><td>escalator-speed</td><td>${(+c.escalator_speed_mps).toFixed(4)} m/s</td></tr>
+      <tr><td>walk-left-stand-right / down-escalator</td><td>${c.walk_left_stand_right ? "on" : "off"} / ${c.direction === "down" ? "on" : "off"}</td></tr>
+      <tr><td>PLOS basis</td><td>K = 4, approach area ${c.approach_area_m2} m², whole run (no warm-up)</td></tr>
+      <tr><td>Random seed / model version</td><td>${c.seed} / ${esc(r.model_version)}</td></tr></tbody></table></div>
+      <h3 class="sub" style="margin-top:22px">Files</h3>
+      <div class="btn-row"><button type="button" class="btn small ghost" id="dl-ts">Time series CSV</button><button type="button" class="btn small ghost" id="dl-iv">PLOS intervals CSV</button><button type="button" class="btn small ghost" id="dl-json">run.json</button></div>
+      <div class="btn-row" style="margin-top:14px"><button type="button" class="btn small" id="again">Run again with these settings</button><button type="button" class="btn small danger" data-del="${esc(r.id)}">Delete</button></div>
+    </div>
+  </div>`;
+  show("run");
+  const name = `run_${String(r.num).padStart(4, "0")}`;
+  $("dl-ts").onclick = () => offerFile(name + "_timeseries.csv", toCsv(seriesRows(ts)));
+  $("dl-iv").onclick = () => offerFile(name + "_intervals.csv", toCsv(r.intervals || []));
+  $("dl-json").onclick = () => offerFile(name + ".json", JSON.stringify(Object.assign({}, r, { timeseries: ts, series: undefined }), null, 1));
+  $("again").onclick = () => { setControls(c); show("dashboard"); setup(); toast("Settings loaded. Press Go."); };
+  const t = ts.t_s, dens = ts.queue.map(q => q / P.approach_area_m2), dmax = Math.max(1, ...dens);
+  chart("rc-cum", { type: "line", data: { datasets: [line("Arrived", pts(t, ts.arrived), C.violet, { borderDash: [5, 4] }), line("Boarded", pts(t, ts.cum_inflow), C.mint), line("Exited", pts(t, ts.cum_outflow), C.pink)] },
+    options: { scales: { x: axX(), y: axY("Pedestrians") }, interaction: { mode: "index", intersect: false } } });
+  chart("rc-queue", { type: "line", data: { datasets: [line("Queue [ped]", pts(t, ts.queue), C.cyan, { yAxisID: "y" })] },
+    options: { scales: { x: axX(), y: axY("Queue [ped]", { max: Math.ceil(dmax * 1.08 * P.approach_area_m2) }), y2: { position: "right", min: 0, max: dmax * 1.08, title: { display: true, text: "Density [ped/m²]" }, grid: { display: false } } },
+      plugins: { legend: { display: false } }, interaction: { mode: "index", intersect: false } }, plugins: [bandPlugin(P.density_bands, "y2")] });
+  const iv = r.intervals || [];
+  chart("rc-vc", { type: "bar", data: { labels: iv.map(x => Math.round(x.t_start_s)), datasets: [{ label: "v/Cf", data: iv.map(x => x.vc), backgroundColor: iv.map(x => C.los[x.los] || "rgba(255,255,255,.25)"), borderColor: C.white, borderWidth: 0.6, barPercentage: 1, categoryPercentage: 0.95 }] },
+    options: { scales: { x: { title: { display: true, text: "Interval start [s]" }, grid: { display: false }, ticks: { maxTicksLimit: 10 } }, y: axY("v / Cf", { max: Math.max(1, ...iv.map(x => x.vc)) * 1.05 }) },
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: cx => `v/Cf ${cx.raw.toFixed(2)} · ${iv[cx.dataIndex].persons} ped · LOS ${iv[cx.dataIndex].los}` } } } }, plugins: [bandPlugin(P.vc_bands, "y", 0.12)] });
+  chart("rc-occ", { type: "line", data: { datasets: [line("Occupied places", pts(t, ts.place_share), C.cyan, { fill: true, backgroundColor: "rgba(95,242,255,.18)" })] },
+    options: { scales: { x: axX(), y: axY("Share of places", { max: 1 }) }, plugins: { legend: { display: false } } } });
+}
+
+/* ----------------------------------------------------- compare */
+function openCompare(ids) {
+  const runs = ids.map(id => Store.get(id)).filter(Boolean).sort((a, b) => a.num - b.num); if (runs.length < 2) return;
+  const metrics = ["throughput_pph", "mean_delay_s", "p95_delay_s", "max_queue_ped", "mean_queue_ped", "share_time_queue_gt20", "mean_ride_s", "mean_ride_walkers_s", "mean_sojourn_s", "mean_occ_ped_per_step", "peak_vc", "max_density", "queue_at_end_ped"];
+  const setRows = [["Arrival model", "arrival_model"], ["arrival-rate [events/s]", "arrival_rate"], ["p-group (%)", "p_group_pct"], ["p-walk-bypass (%)", "p_walk_pct"], ["run length (s)", "duration_s"], ["p-baggage (%)", "p_baggage_pct"],
+    ["group-breakup-prob", "group_breakup_prob"], ["entry-hesitation-prob", "entry_hesitation_prob"], ["n-steps", "n_steps"], ["step-length (m)", "step_length_m"], ["step-height (m)", "step_height_m"],
+    ["escalator-speed (m/s)", "escalator_speed_mps"], ["walk-left-stand-right", "walk_left_stand_right"], ["down-escalator", "direction"], ["Random seed", "seed"]];
+  const showSet = (k, v) => k === "arrival_model" ? ARRIVAL_MODELS[v].split(" (")[0] : k === "direction" ? (v === "down" ? "on" : "off") : v === true ? "on" : v === false ? "off" : v;
+  const head = runs.map(r => `<th class="num"><button type="button" class="linkbtn" data-run="${esc(r.id)}">Run ${r.num}</button></th>`).join("");
+  $("view-compare").innerHTML = `
+  <div class="head"><div class="crumbs"><button type="button" data-go="results">Results</button> / Compare</div><h1>Compare ${runs.length} runs</h1>
+    <p>Best value in each result row glows. Settings that differ between the runs are highlighted. One run per setting includes random variation, so repeat a setting (or use the stand-only check) before trusting a small gap.</p></div>
+  <div class="section"><div class="table-wrap"><table><thead><tr><th>Result</th>${head}</tr></thead><tbody>
+    <tr><td>PLOS (overall)</td>${runs.map(r => `<td class="num">${losChip(r.plos.governing_los)}</td>`).join("")}</tr>
+    <tr><td>PLOS v/Cf · density</td>${runs.map(r => `<td class="num">${r.plos.los_vc} · ${r.plos.los_density}</td>`).join("")}</tr>
+    ${metrics.map(k => { const info = METRIC_INFO[k], vals = runs.map(r => r.metrics[k]).filter(v => v !== null && v !== undefined);
+      const best = info[3] === null || !vals.length ? null : (info[3] ? Math.max(...vals) : Math.min(...vals));
+      return `<tr><td>${info[0]} <span class="muted small">${unit(k)}</span></td>${runs.map(r => `<td class="num ${best !== null && r.metrics[k] === best ? "best" : ""}">${fmt(k, r.metrics[k])}</td>`).join("")}</tr>`; }).join("")}
+    <tr><th colspan="${runs.length + 1}">Settings</th></tr>
+    ${setRows.map(([lab, k]) => { const vals = runs.map(r => r.config[k]); const differs = k !== "seed" && new Set(vals.map(String)).size > 1;
+      return `<tr class="${differs ? "diff" : ""}"><td>${lab}</td>${vals.map(v => `<td class="num">${esc(showSet(k, v))}</td>`).join("")}</tr>`; }).join("")}
+  </tbody></table></div></div>
+  <div class="section grid g2"><div class="card paper"><h3 class="sub">Queue at the entry</h3><div class="chart-box"><canvas id="cc-queue"></canvas></div></div>
+    <div class="card paper"><h3 class="sub">Cumulative exits</h3><div class="chart-box"><canvas id="cc-out"></canvas></div></div></div>`;
+  show("compare");
+  const list = runs.map(r => unpackSeries(r.series));
+  const mk = (id, key, ylab) => chart(id, { type: "line", data: { datasets: list.map((ts, i) => line("Run " + runs[i].num, pts(ts.t_s, ts[key], 900), SERIES[i % SERIES.length])) },
+    options: { scales: { x: axX(), y: axY(ylab) }, interaction: { mode: "nearest", intersect: false } } });
+  mk("cc-queue", "queue", "Queue [ped]"); mk("cc-out", "cum_outflow", "Pedestrians exited");
+}
+
+/* ----------------------------------------------------- stand-only check */
+function openStudy(id) {
+  const s = Store.get(id); if (!s) return;
+  const c = s.config, V = s.verdict, S2 = s.summary, POLS = STUDY_POLICIES;
+  const cls = { better: "better", worse: "worse" }[V.outcome] || "neutral", mark = { better: "✓", worse: "✕" }[V.outcome] || "≈";
+  const rows = ["capacity_pph", "throughput_pph", "mean_delay_s", "p95_delay_s", "max_queue_ped", "mean_queue_ped", "mean_ride_s", "mean_ride_walkers_s", "mean_sojourn_s", "peak_vc", "max_density"];
+  $("view-study").innerHTML = `
+  <div class="head"><div class="crumbs"><button type="button" data-go="results">Results</button> / Stand-only check ${s.num}</div><h1>Stand-only check ${s.num}</h1>
+    <p style="font-weight:400">${esc(s.label)}</p>
+    <div class="btn-row" style="margin-top:14px"><span class="tag">${ARRIVAL_MODELS[c.arrival_model]}</span><span class="tag">rate ${(+c.arrival_rate).toFixed(2)} events/s</span><span class="tag">${c.p_group_pct}% groups</span>
+      <span class="tag">${c.p_walk_pct}% walking</span><span class="tag">run length ${(+c.duration_s).toFixed(0)} s</span><span class="tag">${c.n_steps} steps · ${(+c.escalator_speed_mps).toFixed(2)} m/s · ${c.direction}</span>
+      <span class="tag">${s.reps} demand runs + ${s.cap_reps} capacity tests per policy</span><span class="tag">saved ${esc(s.saved_at)}</span></div></div>
+  <div class="section"><div class="verdict ${cls}"><div class="mark">${mark}</div><div><h2>${esc(V.headline)}</h2><p class="lead" style="margin:0 0 12px">${esc(V.sub)}</p>
+    <ul class="findings">${V.lines.map(l => `<li>${esc(l)}</li>`).join("")}</ul><span class="rec">${esc(V.recommendation)}</span></div></div></div>
+  <div class="section"><h2 class="title">Policy comparison</h2><div class="table-wrap"><table>
+    <thead><tr><th>Result (mean ± 95% CI)</th>${POLS.map(p => `<th class="num">${POLICY_SHORT[p]}</th>`).join("")}</tr></thead><tbody>
+    <tr><td>PLOS (overall)</td>${POLS.map(p => `<td class="num">${losChip(S2[p].governing_los)}</td>`).join("")}</tr>
+    <tr><td>PLOS v/Cf · density</td>${POLS.map(p => `<td class="num">${S2[p].los_vc} · ${S2[p].los_density}</td>`).join("")}</tr>
+    ${rows.map(k => { const info = METRIC_INFO[k], means = POLS.map(p => S2[p][k].mean).filter(v => v !== null);
+      const best = info[3] === null || !means.length ? null : (info[3] ? Math.max(...means) : Math.min(...means));
+      return `<tr><td>${info[0]} <span class="muted small">${unit(k)}</span></td>${POLS.map(p => { const x = S2[p][k];
+        return `<td class="num ${best !== null && x.mean === best ? "best" : ""}">${fmt(k, x.mean)}${x.ci !== null ? ` <span class="ci">± ${fmt(k, x.ci)}</span>` : ""}</td>`; }).join("")}</tr>`; }).join("")}
+  </tbody></table></div>
+  <p class="small muted">Capacity = outflow of a saturated (unlimited-demand) run after 100 s, the practical capacity of the model. Other rows are from the demand runs after the ${(+c.warmup_s).toFixed(0)}-s warm-up. Under stand-only nobody walks, so its "ride time, walkers" is blank.</p></div>
+  <div class="section grid g2">
+    <div class="card paper"><h3 class="sub">Saturated capacity</h3><div class="chart-box"><canvas id="sc-cap"></canvas></div><div class="chart-note">Whiskers: 95% confidence interval.</div></div>
+    <div class="card paper"><h3 class="sub">Mean queueing delay</h3><div class="chart-box"><canvas id="sc-delay"></canvas></div><div class="chart-note">Whiskers: 95% confidence interval.</div></div>
+    <div class="card paper"><h3 class="sub">Queue over time (replication 1)</h3><div class="chart-box"><canvas id="sc-queue"></canvas></div><div class="chart-note">Same arrival stream for every policy.</div></div>
+    <div class="card paper"><h3 class="sub">Capacity vs walking share</h3><div class="chart-box"><canvas id="sc-sweep"></canvas></div><div class="chart-note">Stand-only does not depend on the walking share (nobody walks), so it is a flat line.</div></div>
+  </div>
+  <div class="section"><div class="btn-row"><button type="button" class="btn small ghost" id="ds-reps">Replications CSV</button><button type="button" class="btn small ghost" id="ds-sweep">Walking sweep CSV</button>
+    <button type="button" class="btn small ghost" id="ds-json">study.json</button><button type="button" class="btn small danger" data-del="${esc(s.id)}">Delete</button></div>
+    <p class="small muted" style="margin-top:14px">Settings are the dashboard's (Xie et al. canteen defaults unless you moved the sliders, boarding knobs at 1.0). Behaviour values are placeholders until calibrated from video.</p></div>`;
+  show("study");
+  const name = `study_${String(s.num).padStart(4, "0")}`;
+  $("ds-reps").onclick = () => offerFile(name + "_replications.csv", toCsv(POLS.flatMap(p => s.per_rep[p].map(r => Object.assign({ policy: POLICY_SHORT[p] }, r)))));
+  $("ds-sweep").onclick = () => offerFile(name + "_walking_sweep.csv", toCsv(s.sweep));
+  $("ds-json").onclick = () => offerFile(name + ".json", JSON.stringify(s, null, 1));
+  const colors = { mixed: C.cyan, wlsr_strict: C.violet, stand_only: C.pink }, names = POLS.map(p => POLICY_SHORT[p]);
+  const bar = (id, key, ylab) => { const vals = POLS.map(p => S2[p][key].mean), errs = POLS.map(p => S2[p][key].ci);
+    chart(id, { type: "bar", data: { labels: names, datasets: [{ data: vals, backgroundColor: POLS.map(p => colors[p]), borderColor: C.white, borderWidth: 1.2, borderRadius: 10, maxBarThickness: 90 }] },
+      options: { scales: { x: { grid: { display: false } }, y: axY(ylab, { suggestedMax: Math.max(...vals.map((v, i) => (v || 0) + (errs[i] || 0))) * 1.1 }) }, plugins: { legend: { display: false } } }, plugins: [whiskerPlugin(errs)] }); };
+  bar("sc-cap", "capacity_pph", "Capacity [ped/h]"); bar("sc-delay", "mean_delay_s", "Mean delay [s]");
+  chart("sc-queue", { type: "line", data: { datasets: POLS.filter(p => s.series[p]).map(p => line(POLICY_SHORT[p], pts(s.series[p].t, s.series[p].queue), colors[p])) },
+    options: { scales: { x: axX(), y: axY("Queue [ped]") }, interaction: { mode: "nearest", intersect: false } } });
+  const w = s.sweep.map(r => r.walk_pct), soCap = S2.stand_only.capacity_pph.mean;
+  chart("sc-sweep", { type: "line", data: { datasets: [
+    line(POLICY_SHORT.mixed, w.map((x, i) => ({ x, y: s.sweep[i].mixed })), C.cyan, { pointRadius: 4 }),
+    line(POLICY_SHORT.wlsr_strict, w.map((x, i) => ({ x, y: s.sweep[i].wlsr_strict })), C.violet, { pointRadius: 4 }),
+    line(POLICY_SHORT.stand_only, [{ x: w[0], y: soCap }, { x: w[w.length - 1], y: soCap }], C.pink, { borderDash: [6, 4] })] },
+    options: { scales: { x: axX("People intending to walk [%]"), y: axY("Saturated capacity [ped/h]", { beginAtZero: false }) }, interaction: { mode: "nearest", intersect: false } } });
+}
+
+/* ----------------------------------------------------- method tables */
+function buildLosTables() {
+  $("los-tables").innerHTML = [[4, "Table 10 · K = 4"], [5, "Table 11 · K = 5"]].map(([k, cap]) => { const T = PLOS.CRITERIA[k];
+    return `<div class="table-wrap"><table><thead><tr><th>${cap}</th><th class="num">v/Cf up to</th><th class="num">Density up to [ped/m²]</th></tr></thead><tbody>
+      ${T.vc.map(([b, l], i) => `<tr><td>${losChip(l)}</td><td class="num">${isFinite(b) ? b.toFixed(2) : "above " + T.vc[i - 1][0].toFixed(2)}</td><td class="num">${isFinite(T.density[i][0]) ? T.density[i][0].toFixed(2) : "above " + T.density[i - 1][0].toFixed(2)}</td></tr>`).join("")}
+    </tbody></table></div>`; }).join("");
+}
+
+/* ----------------------------------------------------- start */
+Store.items = Store.readLocal();
+buildPanels(); buildLosTables(); showSpeed(); setup(); renderResults();
+if (["results", "method"].includes(location.hash.slice(1))) show(location.hash.slice(1)); else show("dashboard");
+Store.init();
+</script>
+
+</body></html>
