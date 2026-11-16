@@ -332,10 +332,11 @@ code { background: rgba(255,255,255,.14); border: 1px solid var(--hair); border-
     <div class="section">
       <div class="btn-row" style="margin-bottom:14px">
         <button type="button" class="btn" id="b-compare" disabled>Compare selected</button>
+        <button type="button" class="btn danger" id="b-del-sel" disabled>Delete selected</button>
         <button type="button" class="btn ghost" id="b-export-csv">Download runs table (CSV)</button>
         <button type="button" class="btn ghost" id="b-backup">Download backup (JSON)</button>
         <label class="btn ghost file-label" for="f-restore">Restore a backup<input type="file" id="f-restore" accept=".json,application/json"></label>
-        <span class="muted small" id="cmp-n">Select 2–6 runs</span>
+        <span class="muted small" id="cmp-n">Tick runs to compare (2–6) or delete</span>
       </div>
       <div id="runs-table"></div>
     </div>
@@ -1261,16 +1262,22 @@ function renderResults() {
       <td class="num">${(+r.plos.peak_vc).toFixed(2)}</td><td>${losChip(r.plos.governing_los)}</td><td class="small muted">${esc(r.saved_at)}</td></tr>`; }).join("")}</tbody></table></div>`
     : `<div class="card empty"><h2 class="title">No runs yet</h2><p class="muted">Runs appear here as soon as they finish on the dashboard.</p><button type="button" class="btn" data-go="dashboard">Open the dashboard</button></div>`;
   $("studies-table").innerHTML = studies.length ? `<div class="table-wrap"><table>
-    <thead><tr><th>#</th><th>Check</th><th>Verdict</th><th class="num">Capacity: walking allowed</th><th class="num">Capacity: stand-only</th><th class="num">Change</th><th>PLOS (allowed → stand-only)</th><th>Saved</th><th></th></tr></thead>
-    <tbody>${studies.map(s => { const S2 = s.summary; return `<tr><td>${s.num}</td><td><button type="button" class="linkbtn" data-study="${esc(s.id)}">${esc(s.label)}</button></td>
+    <thead><tr><th></th><th>#</th><th>Check</th><th>Verdict</th><th class="num">Capacity: walking allowed</th><th class="num">Capacity: stand-only</th><th class="num">Change</th><th>PLOS (allowed → stand-only)</th><th>Saved</th><th></th></tr></thead>
+    <tbody>${studies.map(s => { const S2 = s.summary; return `<tr><td><input type="checkbox" class="study-box" value="${esc(s.id)}" aria-label="Select stand-only check ${s.num}"></td><td>${s.num}</td><td><button type="button" class="linkbtn" data-study="${esc(s.id)}">${esc(s.label)}</button></td>
       <td><span class="tag">${esc(s.verdict.outcome)}</span></td><td class="num">${fmt("capacity_pph", S2.mixed.capacity_pph.mean)}</td><td class="num">${fmt("capacity_pph", S2.stand_only.capacity_pph.mean)}</td>
       <td class="num">${s.verdict.vs.mixed.cap_pct >= 0 ? "+" : ""}${s.verdict.vs.mixed.cap_pct.toFixed(1)}%</td><td>${losChip(S2.mixed.governing_los)} → ${losChip(S2.stand_only.governing_los)}</td>
       <td class="small muted">${esc(s.saved_at)}</td><td><button type="button" class="btn small danger" data-del="${esc(s.id)}">Delete</button></td></tr>`; }).join("")}</tbody></table></div>`
     : `<p class="muted">None yet. Start one from the bottom of the <button type="button" class="linkbtn" data-go="dashboard">Run page</button>.</p>`;
-  document.querySelectorAll(".cmp-box").forEach(b => b.addEventListener("change", updCmp)); updCmp();
+  document.querySelectorAll(".cmp-box, .study-box").forEach(b => b.addEventListener("change", updCmp)); updCmp();
 }
 function selectedRuns() { return [...document.querySelectorAll(".cmp-box:checked")].map(b => b.value); }
-function updCmp() { const n = selectedRuns().length; $("b-compare").disabled = n < 2 || n > 6; $("cmp-n").textContent = n ? n + " selected" : "Select 2–6 runs"; }
+function selectedAll() { return [...document.querySelectorAll(".cmp-box:checked, .study-box:checked")].map(b => b.value); }
+function updCmp() {
+  const n = selectedRuns().length, all = selectedAll().length, del = $("b-del-sel");
+  $("b-compare").disabled = n < 2 || n > 6;
+  del.disabled = all === 0; del.dataset.armed = ""; del.textContent = all ? `Delete selected (${all})` : "Delete selected";
+  $("cmp-n").textContent = all ? `${n} run${n === 1 ? "" : "s"}, ${all - n} check${all - n === 1 ? "" : "s"} selected` : "Tick runs to compare (2–6) or delete";
+}
 document.addEventListener("click", e => {
   const r = e.target.closest("[data-run]"); if (r) { openRun(r.dataset.run); return; }
   const s = e.target.closest("[data-study]"); if (s) { openStudy(s.dataset.study); return; }
@@ -1281,6 +1288,19 @@ document.addEventListener("click", e => {
   }
 });
 $("b-compare").addEventListener("click", () => openCompare(selectedRuns()));
+$("b-del-sel").addEventListener("click", async () => {
+  const ids = selectedAll(), b = $("b-del-sel");
+  if (!ids.length) return;
+  if (b.dataset.armed !== "1") {   // second click confirms (the page cannot show a confirm dialog)
+    b.dataset.armed = "1"; b.textContent = `Confirm: delete ${ids.length} permanently`;
+    setTimeout(() => { if (b.dataset.armed === "1") { b.dataset.armed = ""; b.textContent = `Delete selected (${selectedAll().length})`; } }, 5000);
+    return;
+  }
+  b.disabled = true; b.textContent = "Deleting…";
+  for (const id of ids) await Store.remove(id);
+  toast(`Deleted ${ids.length} item${ids.length === 1 ? "" : "s"}.`);
+  renderResults();
+});
 $("b-export-csv").addEventListener("click", () => {
   const rows = Store.sorted("run").reverse().map(r => Object.assign({ run: r.num, label: r.label, saved_at: r.saved_at, model_version: r.model_version },
     Object.fromEntries(Object.entries(r.config).map(([k, v]) => ["set_" + k, v])), r.metrics,
