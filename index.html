@@ -363,13 +363,14 @@ body { text-shadow: 0 1px 2px rgba(64, 22, 58, .6), 0 0 1px rgba(64, 22, 58, .5)
       <p>Escalator parameters measured from video: arrival rate, groups, walking share, belt speed, the best-fitting arrival model, PLOS and the CA tuned to the video.
          Open any <code>analysis.json</code> made by the video tool to view it here and use its settings on the dashboard.</p>
       <div class="btn-row" style="margin-top:14px">
-        <label class="btn file-label" for="f-video">Open a video analysis (analysis.json)<input type="file" id="f-video" accept=".json,application/json"></label>
+        <label class="btn ghost file-label" for="f-video">Open a saved analysis (analysis.json)<input type="file" id="f-video" accept=".json,application/json"></label>
       </div>
     </div>
+    <div class="section" id="vb-start"></div>
     <div class="section"><div id="videos-table"></div></div>
     <div class="section card paper">
-      <h3 class="sub">Analysing a new video</h3>
-      <p class="small" style="margin-top:0">Finding and tracking people in a video needs the detector that runs on your computer, so a new video is analysed in the local website and then opened here.</p>
+      <h3 class="sub">Bigger detector on your computer (optional)</h3>
+      <p class="small" style="margin-top:0">The analysis above uses the small YOLO11n detector in your browser. The local website uses the larger YOLO11s, which finds more small or partly hidden people, and suits long or 4K videos. Its results open here too:</p>
       <ol class="small" style="margin:0;padding-left:20px;line-height:1.7">
         <li>On your computer, double-click <code>start_website.bat</code> in the <code>escalator</code> folder (or run <code>python web_app.py</code>) and open <code>http://127.0.0.1:5000</code>.</li>
         <li>Click <b>Video</b>, choose the video file, press <b>Next: mark the escalator</b>, click the four corners of the escalator stretch, then <b>Save and analyse</b>.</li>
@@ -383,6 +384,7 @@ body { text-shadow: 0 1px 2px rgba(64, 22, 58, .6), 0 0 1px rgba(64, 22, 58, .5)
   <section id="view-compare" class="view" hidden></section>
   <section id="view-study" class="view" hidden></section>
   <section id="view-videoa" class="view" hidden></section>
+  <section id="view-vnew" class="view" hidden></section>
 
   <!-- ===================================================== ENERGY -->
   <section id="view-energy" class="view" hidden>
@@ -557,10 +559,11 @@ class EscalatorCA {
              enteredAt: this.t, exitedAt: null, boardedAt: null, age, wide, partner: null, intact: true, blockedTicks: 0,
              formation: null, strictRight, entryLane: null };
   }
-  spawnEvent() {
+  spawnEvent(fixedSize) {          // fixedSize: replay of an observed group size (video analysis); undefined = drawn
     const gid = ++PED_ID, rng = this.rng;
-    if (!(rng.random() < this.p.p_group_pct / 100)) { this.queue.push([this.makePed(gid, 1)]); return; }
-    const size = rng.choice(GROUP_SIZES, GROUP_W), members = [];
+    const isGroup = fixedSize === undefined ? rng.random() < this.p.p_group_pct / 100 : fixedSize > 1;
+    if (!isGroup) { this.queue.push([this.makePed(gid, 1)]); return; }
+    const size = fixedSize === undefined ? rng.choice(GROUP_SIZES, GROUP_W) : fixedSize, members = [];
     for (let i = 0; i < size; i++) members.push(this.makePed(gid, size));
     const formation = (size === 2 && !this.p.strategy_I) ? rng.choice(FORMS, FORM_W) : "front_back";
     members.forEach(m => { m.formation = formation; });
@@ -630,7 +633,7 @@ class EscalatorCA {
   }
   processArrivals() {
     if (this.p.arrival_mode === "trace") {
-      while (this.traceIdx < this.trace.length && this.t >= this.trace[this.traceIdx]) { this.traceIdx++; this.spawnEvent(); }
+      while (this.traceIdx < this.trace.length && this.t >= this.trace[this.traceIdx]) { this.traceIdx++; this.spawnEvent(this.p.arrival_sizes ? this.p.arrival_sizes[this.traceIdx - 1] : undefined); }
     } else {
       while (this.t >= this.nextArrival) { this.spawnEvent(); this.nextArrival = this.t + this.rng.exponential(1 / this.p.arrival_rate); }
     }
@@ -1117,10 +1120,10 @@ function whiskerPlugin(errors) {
 /* =====================================================================
    10. Views
    ===================================================================== */
-const VIEWS = ["dashboard", "results", "run", "compare", "study", "video", "videoa", "energy", "method"];
+const VIEWS = ["dashboard", "results", "run", "compare", "study", "video", "videoa", "vnew", "energy", "method"];
 function show(view) {
   VIEWS.forEach(v => { document.getElementById("view-" + v).hidden = v !== view; });
-  const navFor = { dashboard: "dashboard", results: "results", run: "results", compare: "results", study: "results", video: "video", videoa: "video", energy: "energy", method: "method" }[view];
+  const navFor = { dashboard: "dashboard", results: "results", run: "results", compare: "results", study: "results", video: "video", videoa: "video", vnew: "video", energy: "energy", method: "method" }[view];
   ["dashboard", "results", "video", "energy", "method"].forEach(n => document.getElementById("nav-" + n).classList.toggle("active", n === navFor));
   if (view === "results") renderResults();
   if (view === "video") renderVideos();
@@ -1319,6 +1322,7 @@ function renderResults() {
   document.querySelectorAll(".cmp-box, .study-box").forEach(b => b.addEventListener("change", updCmp)); updCmp();
 }
 function renderVideos() {
+  if (!$("vb-start").innerHTML) { $("vb-start").innerHTML = VideoBrowser.startCard(); VideoBrowser.bindStart(); }
   const vids = Store.sorted("video");
   $("videos-table").innerHTML = vids.length ? `<div class="table-wrap"><table>
     <thead><tr><th>#</th><th>Video analysis</th><th class="num">Duration</th><th class="num">Arrivals /min</th><th class="num">Groups</th><th class="num">Walking</th><th class="num">Belt</th><th>Best arrival model</th><th>PLOS</th><th>Opened</th><th></th></tr></thead>
@@ -1608,6 +1612,7 @@ function openVideo(id) {
       <div class="chart-box"><canvas id="va-board"></canvas></div><div class="chart-note">Clip 1: cumulative boardings observed (solid) vs the tuned CA replaying the same arrivals (dashed).</div>` : `<p class="muted">Too few boardings to tune the CA.</p>`}
   </div>`;
   show("videoa");
+  VideoBrowser.afterOpen(rec, $("view-videoa").querySelector(".head"));
   $("va-use").onclick = () => { setControls(Object.assign(readControls(), ds, { direction: ds.down_escalator ? "down" : "up" })); show("dashboard"); setup();
     toast("Measured settings loaded. Press Go."); };
   const o = (a.observed || [])[0], r = (a.replay || []).find(x => x.clip === 0);
@@ -1615,6 +1620,644 @@ function openVideo(id) {
     line("Reached the escalator", pts(o.t, o.reached), "rgba(255,255,255,.55)", { borderDash: [2, 3], borderWidth: 1.4 })] },
     options: { scales: { x: axX(), y: axY("People") }, interaction: { mode: "index", intersect: false } } });
 }
+
+/* ----------------------------------------------------- video analysis in the browser */
+/* VIDEO-BEGIN: copied from share/video_browser.js by share/sync_energy.py; edit that file, not this block */
+/* In-browser video analysis for the shareable page (GitHub Pages / claude.ai):
+     detect   YOLO11n person detector (models/yolo11n.onnx, exported from Ultralytics) run by
+              ONNX Runtime Web (WebGPU when available, else WebAssembly)
+     track    ByteTrack-style tracker (two-stage IoU matching, constant-velocity prediction)
+     measure  a line-by-line port of video_measure.py (same thresholds, same outputs), the CA
+              tuning and arrival-model fit using this page's own CA and arrival models
+   The video never leaves the browser. Inlined into escalator_ca.html between the VIDEO markers by
+   share/sync_energy.py: edit this file, then run python share/make_standalone.py. */
+const VideoBrowser = (() => {
+  const ORT_DIR = "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.20.1/dist/";
+  const MODEL_URL = "models/yolo11n.onnx";
+  // video_measure.py constants
+  const WALK_MARGIN = [0.25, 0.30], GROUP_SIDE_DT = 0.6, GROUP_TOGETHER_DT = [1.0, 1.2], GROUP_CLOSE_STEPS = 1.0, MIN_RIDE_SAMPLES = 5;
+  const GRID_SHARE = [0.10, 0.25, 0.45, 0.70, 1.00], GRID_NOGAP = [0.30, 0.60, 0.80, 1.00];
+  const MODELS = ["deterministic", "erlang3", "poisson", "nhpp_peak", "mmpp2", "train_platoon"];
+  // As the local tool: detections below conf 0.25 are dropped (Ultralytics track(conf=0.25)), then ByteTrack
+  // (bytetrack.yaml: match 0.8 with fused score, new tracks confirmed on their 2nd frame, 30-frame buffer)
+  const CONF = 0.25, TRK = { matchCost: 0.8, unconfCost: 0.7, buffer: 30 };
+
+  let session = null;          // { name, clips: [{file,url,name,width,height,duration_s,tracks}], cal, opts, recId, roles }
+  let cancelled = false;
+
+  /* ------------------------------------------------------------- small numeric helpers */
+  const isNum = v => typeof v === "number" && !Number.isNaN(v);
+  const nums = a => a.filter(isNum);
+  const meanOf = a => { const b = nums(a); return b.length ? b.reduce((s, x) => s + x, 0) / b.length : NaN; };
+  const stdOf = a => { const b = nums(a); if (!b.length) return NaN; const m = meanOf(b); return Math.sqrt(b.reduce((s, x) => s + (x - m) ** 2, 0) / b.length); };
+  const varS = a => { const m = meanOf(a); return a.reduce((s, x) => s + (x - m) ** 2, 0) / (a.length - 1); };
+  const quantile = (a, q) => { const b = nums(a).sort((x, y) => x - y); if (!b.length) return NaN; const i = (b.length - 1) * q, lo = Math.floor(i), hi = Math.ceil(i); return b[lo] + (b[hi] - b[lo]) * (i - lo); };
+  const median = a => quantile(a, 0.5);
+  const slope = (x, y) => { const mx = meanOf(x), my = meanOf(y); let n = 0, d = 0; for (let i = 0; i < x.length; i++) { n += (x[i] - mx) * (y[i] - my); d += (x[i] - mx) ** 2; } return d ? n / d : NaN; };
+  const searchRight = (sorted, v) => { let lo = 0, hi = sorted.length; while (lo < hi) { const m = (lo + hi) >> 1; if (sorted[m] <= v) lo = m + 1; else hi = m; } return lo; };
+  const pause = () => new Promise(r => setTimeout(r, 0));
+  const r3 = v => isNum(v) ? Math.round(v * 1000) / 1000 : v;
+
+  function solve8(A, b) {
+    for (let c = 0; c < 8; c++) { let p = c; for (let r = c + 1; r < 8; r++) if (Math.abs(A[r][c]) > Math.abs(A[p][c])) p = r;
+      [A[c], A[p]] = [A[p], A[c]]; [b[c], b[p]] = [b[p], b[c]];
+      for (let r = 0; r < 8; r++) if (r !== c) { const f = A[r][c] / A[c][c]; for (let k = c; k < 8; k++) A[r][k] -= f * A[c][k]; b[r] -= f * b[c]; } }
+    return b.map((v, i) => v / A[i][i]);
+  }
+  function homography(src, dst) {            // like cv2.getPerspectiveTransform: maps src[i] -> dst[i]
+    const A = [], b = [];
+    for (let i = 0; i < 4; i++) { const [x, y] = src[i], [X, Y] = dst[i];
+      A.push([x, y, 1, 0, 0, 0, -x * X, -y * X]); b.push(X); A.push([0, 0, 0, x, y, 1, -x * Y, -y * Y]); b.push(Y); }
+    const h = solve8(A, b);
+    return (x, y) => { const w = h[6] * x + h[7] * y + 1; return [(h[0] * x + h[1] * y + h[2]) / w, (h[3] * x + h[4] * y + h[5]) / w]; };
+  }
+  function inPoly(poly, x, y) { let inside = false;
+    for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) { const [xi, yi] = poly[i], [xj, yj] = poly[j];
+      if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) inside = !inside; }
+    return inside; }
+
+  /* ------------------------------------------------------------- calibration (video_measure.Calib) */
+  function Calib(c) {
+    const q = c.escalator_quad, W = +(c.width_m || 1.0), N = +c.steps_in_quad;
+    const H = homography(q, [[0, 0], [W, 0], [W, N], [0, N]]);
+    const pxPerM = Math.hypot(q[1][0] - q[0][0], q[1][1] - q[0][1]) / W;
+    const app = c.approach_poly && c.approach_poly.length >= 3 ? c.approach_poly : null;
+    let area = c.approach_area_m2;
+    if (app && !area) { let s = 0; for (let i = 0; i < app.length; i++) { const [x1, y1] = app[i], [x2, y2] = app[(i + 1) % app.length]; s += x1 * y2 - x2 * y1; }
+      area = Math.abs(s) / 2 / pxPerM ** 2; c.approach_area_estimated = true; }
+    return { c, W, N, H, pxPerM, app, area: area ? +area : null, depth: +(c.step_depth_m || 0.40),
+             inApp: (x, y) => app ? inPoly(app, x, y) : false };
+  }
+
+  /* ------------------------------------------------------------- detector */
+  const Det = {
+    session: null, ep: "", userModel: null, canvas: null, ctx: null,
+    async init(say) {
+      if (Det.session) return;
+      if (!window.ort) { say("Loading the detector runtime"); await new Promise((res, rej) => { const s = document.createElement("script"); s.src = ORT_DIR + "ort.webgpu.min.js"; s.onload = res; s.onerror = () => rej(new Error("Could not load ONNX Runtime from cdn.jsdelivr.net (are you online?)")); document.head.appendChild(s); }); }
+      ort.env.wasm.wasmPaths = ORT_DIR;
+      if (!self.crossOriginIsolated) ort.env.wasm.numThreads = 1;
+      let buf = Det.userModel;
+      if (!buf) {
+        say("Downloading the person detector (11 MB, only the first time)");
+        let r = null; try { r = await fetch(MODEL_URL); } catch (e) { r = null; }
+        if (!r || !r.ok) { const e = new Error("MODEL_MISSING"); throw e; }
+        buf = await r.arrayBuffer();
+      }
+      const bytes = new Uint8Array(buf), tries = navigator.gpu ? ["webgpu", "wasm"] : ["wasm"];
+      let last = null;
+      for (const ep of tries) {
+        try { say(`Starting the detector (${ep === "webgpu" ? "graphics card" : "processor"})`);
+          Det.session = await ort.InferenceSession.create(bytes.slice(), { executionProviders: [ep], graphOptimizationLevel: "all" }); Det.ep = ep; break; }
+        catch (e) { last = e; }
+      }
+      if (!Det.session) throw last || new Error("Could not start the detector");
+    },
+    async detect(video, S) {
+      const W = video.videoWidth, H = video.videoHeight, r = Math.min(S / W, S / H), nw = Math.round(W * r), nh = Math.round(H * r);
+      const px = Math.floor((S - nw) / 2), py = Math.floor((S - nh) / 2);
+      if (!Det.canvas || Det.canvas.width !== S) { Det.canvas = document.createElement("canvas"); Det.canvas.width = Det.canvas.height = S; Det.ctx = Det.canvas.getContext("2d", { willReadFrequently: true }); }
+      const ctx = Det.ctx; ctx.fillStyle = "rgb(114,114,114)"; ctx.fillRect(0, 0, S, S); ctx.drawImage(video, px, py, nw, nh);
+      const d = ctx.getImageData(0, 0, S, S).data, n = S * S, a = new Float32Array(3 * n);
+      for (let i = 0, j = 0; i < n; i++, j += 4) { a[i] = d[j] / 255; a[n + i] = d[j + 1] / 255; a[2 * n + i] = d[j + 2] / 255; }
+      const sess = Det.session, out = await sess.run({ [sess.inputNames[0]]: new ort.Tensor("float32", a, [1, 3, S, S]) });
+      const o = out[sess.outputNames[0]].data, A = o.length / 84, boxes = [];
+      for (let i = 0; i < A; i++) { const sc = o[4 * A + i]; if (sc < CONF) continue;          // class 0 = person
+        const cx = o[i], cy = o[A + i], w = o[2 * A + i], h = o[3 * A + i];
+        boxes.push([(cx - w / 2 - px) / r, (cy - h / 2 - py) / r, (cx + w / 2 - px) / r, (cy + h / 2 - py) / r, sc]); }
+      boxes.sort((p, q) => q[4] - p[4]);
+      const keep = [];
+      for (const b of boxes) { if (keep.length >= 300) break; if (keep.every(k => iou(k, b) <= 0.7)) keep.push(b); }
+      return keep.map(b => [Math.max(0, b[0]), Math.max(0, b[1]), Math.min(W, b[2]), Math.min(H, b[3]), b[4]]);
+    },
+  };
+  function iou(a, b) { const x1 = Math.max(a[0], b[0]), y1 = Math.max(a[1], b[1]), x2 = Math.min(a[2], b[2]), y2 = Math.min(a[3], b[3]);
+    const i = Math.max(0, x2 - x1) * Math.max(0, y2 - y1), u = (a[2] - a[0]) * (a[3] - a[1]) + (b[2] - b[0]) * (b[3] - b[1]) - i; return u > 0 ? i / u : 0; }
+
+  /* ------------------------------------------------------------- tracker (ByteTrack-style) */
+  function Tracker() {
+    let tracks = [], nextId = 1, frame = 0;
+    const predict = tr => { const g = frame - tr.last; return [tr.box[0] + tr.vx * g, tr.box[1] + tr.vy * g, tr.box[2] + tr.vx * g, tr.box[3] + tr.vy * g]; };
+    function match(trs, dets, maxCost) {          // cost = 1 - IoU x score (fuse_score), greedy lowest cost first
+      const pairs = [];
+      trs.forEach((t, i) => { const p = predict(t); dets.forEach((d, j) => { const c = 1 - iou(p, d) * d[4]; if (c <= maxCost) pairs.push([c, i, j]); }); });
+      pairs.sort((a, b) => a[0] - b[0]);
+      const ut = new Set(), ud = new Set(), m = [];
+      for (const [, i, j] of pairs) if (!ut.has(i) && !ud.has(j)) { ut.add(i); ud.add(j); m.push([i, j]); }
+      return { m, trLeft: trs.filter((_, i) => !ut.has(i)), detLeft: dets.filter((_, j) => !ud.has(j)) };
+    }
+    function apply(t, d) {
+      const g = Math.max(1, frame - t.last), cx = (d[0] + d[2]) / 2 - (t.box[0] + t.box[2]) / 2, cy = (d[1] + d[3]) / 2 - (t.box[1] + t.box[3]) / 2;
+      t.vx = t.hits > 1 ? 0.6 * t.vx + 0.4 * cx / g : cx / g; t.vy = t.hits > 1 ? 0.6 * t.vy + 0.4 * cy / g : cy / g;
+      t.box = d.slice(0, 4); t.conf = d[4]; t.last = frame; t.hits++;
+    }
+    return {
+      update(dets) {
+        frame++;
+        const confirmed = tracks.filter(t => t.confirmed), unconf = tracks.filter(t => !t.confirmed);
+        const s1 = match(confirmed, dets, TRK.matchCost);              // tracked + lost tracks
+        s1.m.forEach(([i, j]) => apply(confirmed[i], dets[j]));
+        const s2 = match(unconf, s1.detLeft, TRK.unconfCost);          // last frame's new tracks: confirm or drop
+        s2.m.forEach(([i, j]) => { apply(unconf[i], s1.detLeft[j]); unconf[i].confirmed = true; });
+        const dropped = new Set(s2.trLeft);
+        tracks = tracks.filter(t => !dropped.has(t));
+        for (const d of s2.detLeft) tracks.push({ id: 0, box: d.slice(0, 4), conf: d[4], vx: 0, vy: 0, last: frame, hits: 1, confirmed: frame === 1 });
+        tracks = tracks.filter(t => frame - t.last <= TRK.buffer);
+        tracks.forEach(t => { if (t.confirmed && !t.id) t.id = nextId++; });
+        return tracks.filter(t => t.confirmed && t.last === frame).map(t => ({ id: t.id, box: t.box, conf: t.conf }));
+      },
+    };
+  }
+
+  /* ------------------------------------------------------------- reading frames */
+  function openVideo(url) {
+    return new Promise((res, rej) => { const v = document.createElement("video"); v.muted = true; v.playsInline = true; v.preload = "auto";
+      v.onloadeddata = () => res(v); v.onerror = () => rej(new Error("This browser cannot read this video. MP4 (H.264) works everywhere; convert HEVC/.mov files first.")); v.src = url; });
+  }
+  function seek(v, t) {
+    return new Promise(res => { let done = false; const fin = () => { if (!done) { done = true; v.removeEventListener("seeked", fin); res(); } };
+      v.addEventListener("seeked", fin); setTimeout(fin, 4000); v.currentTime = t; });
+  }
+  async function trackClip(clip, fps, S, say) {
+    const v = await openVideo(clip.url), tr = Tracker(), rows = [], T = clip.duration_s, n = Math.floor(T * fps - 1e-6) + 1, t0 = performance.now();
+    for (let k = 0; k < n; k++) {
+      if (cancelled) throw new Error("CANCELLED");
+      const t = k / fps; await seek(v, Math.min(t, Math.max(0, T - 0.01)));
+      const out = tr.update(await Det.detect(v, S));
+      for (const o of out) { const [x1, y1, x2, y2] = o.box; rows.push({ frame: k, t_s: t, id: o.id, x1, y1, x2, y2, conf: o.conf, foot_x: (x1 + x2) / 2, foot_y: y2 }); }
+      if (k % 3 === 0 || k === n - 1) { const el = (performance.now() - t0) / 1000, left = el / (k + 1) * (n - k - 1);
+        say((k + 1) / n, `Tracking frame ${k + 1} of ${n} · ${Math.round(el)} s, about ${Math.round(left)} s left`); }
+    }
+    v.removeAttribute("src"); v.load();
+    return rows;
+  }
+
+  /* ------------------------------------------------------------- measuring (video_measure.py) */
+  function personEvents(rows, cal, clip) {
+    const edge = 0.6, by = new Map(), samples = [];
+    for (const r of rows) {
+      const [u, s] = cal.H(r.foot_x, r.foot_y), inA = cal.inApp(r.foot_x, r.foot_y);
+      const on = s >= 0 && s <= cal.N && u > -0.25 * cal.W && u < 1.25 * cal.W;
+      const smp = { clip, frame: r.frame, id: r.id, pid: `${clip}-${r.id}`, t: r.t_s, u, s, inA, on, x: r.foot_x, y: r.foot_y };
+      samples.push(smp); if (!by.has(r.id)) by.set(r.id, []); by.get(r.id).push(smp);
+    }
+    const ev = [];
+    for (const [id, g0] of by) {
+      const g = g0.slice().sort((a, b) => a.t - b.t);
+      const t = g.map(x => x.t), s = g.map(x => x.s), u = g.map(x => x.u), ina = g.map(x => x.inA), on = g.map(x => x.on), X = g.map(x => x.x), Y = g.map(x => x.y);
+      if (!on.some(Boolean) && !ina.some(Boolean)) continue;
+      const r = { clip, id: `${clip}-${id}`, tid: id, first_t: t[0], last_t: t[t.length - 1], t_arrive: NaN, arrival_known: false, t_board: NaN, boarded: false,
+                  board_inferred: false, ride_speed: NaN, lane_u: NaN, approach_speed_mps: NaN, s_first_on: NaN, t_first_on: NaN };
+      const io = on.indexOf(true);
+      if (io >= 0) { r.s_first_on = s[io]; r.t_first_on = t[io]; }
+      const k = on.findIndex((o, i) => o && s[i] >= 0);
+      if (k > 0 && s.slice(0, k).some(v => v < 0)) { const j = k - 1, fr = s[k] !== s[j] ? (0 - s[j]) / (s[k] - s[j]) : 1;
+        r.t_board = t[j] + Math.min(1, Math.max(0, fr)) * (t[k] - t[j]); r.boarded = true; }
+      const ia = ina.indexOf(true);
+      if (ia >= 0) {
+        r.t_arrive = t[ia]; r.arrival_known = ia > 0 && t[0] > edge;
+        const stop = r.boarded ? r.t_board : t[t.length - 1], idx = []; for (let i = 0; i < t.length; i++) if (ina[i] && t[i] <= stop) idx.push(i);
+        if (idx.length >= 4 && r.arrival_known) { let dd = 0; for (let i = 1; i < idx.length; i++) dd += Math.hypot(X[idx[i]] - X[idx[i - 1]], Y[idx[i]] - Y[idx[i - 1]]);
+          const span = t[idx[idx.length - 1]] - t[idx[0]]; if (span > 0.5) r.approach_speed_mps = dd / cal.pxPerM / span; }
+      } else if (r.boarded) { r.t_arrive = r.t_board; r.arrival_known = !cal.app && r.t_board > edge; }
+      const m = []; for (let i = 0; i < t.length; i++) if (on[i] && s[i] > 0.3 && s[i] < cal.N - 0.3) m.push(i);
+      if (m.length >= MIN_RIDE_SAMPLES && t[m[m.length - 1]] - t[m[0]] >= 0.8) { r.ride_speed = slope(m.map(i => t[i]), m.map(i => s[i])); r.lane_u = median(m.map(i => u[i])); }
+      ev.push(r);
+    }
+    return { ev, samples };
+  }
+  function beltSpeed(speeds) {
+    const v = speeds.filter(x => x > 0.2 && x < 8).sort((a, b) => a - b);
+    if (!v.length) return NaN; if (v.length < 3) return median(v);
+    let best = 0, bi = 0; for (let i = 0; i < v.length; i++) { const n = searchRight(v, v[i] + 0.3 - 1e-12) - i; if (n > best) { best = n; bi = i; } }
+    return median(v.slice(bi, bi + best));
+  }
+  function findGroups(ev, cal, onMap) {
+    const b = ev.filter(e => e.boarded).sort((p, q) => p.clip - q.clip || p.t_board - q.t_board);
+    const gap = (a, c) => { const A = onMap.get(a), B = onMap.get(c); if (!A || !B) return NaN; const d = []; for (const [f, s] of A) if (B.has(f)) d.push(Math.abs(s - B.get(f))); return d.length >= 3 ? median(d) : NaN; };
+    let g = 0;
+    b.forEach((e, k) => {
+      if (k > 0) { const p = b[k - 1], dtb = Math.abs(e.t_board - p.t_board);
+        const side = dtb < GROUP_SIDE_DT && isNum(e.lane_u) && isNum(p.lane_u) && ((e.lane_u < cal.W / 2) !== (p.lane_u < cal.W / 2));
+        const together = Math.abs(e.t_arrive - p.t_arrive) < GROUP_TOGETHER_DT[0] && dtb < GROUP_TOGETHER_DT[1] && !!cal.app;
+        const close = dtb < GROUP_TOGETHER_DT[1] && gap(e.id, p.id) <= GROUP_CLOSE_STEPS;
+        if (!((side || together || close) && e.clip === p.clip)) g++; }
+      e.group = g;
+    });
+    const size = new Map(); b.forEach(e => size.set(e.group, (size.get(e.group) || 0) + 1));
+    ev.forEach(e => { if (e.boarded) e.group_size = size.get(e.group); else { e.group = NaN; e.group_size = NaN; } });
+  }
+  function seriesObs(e, d) {
+    const n = Math.ceil(d), tb = e.map(x => x.t_board).sort((a, b) => a - b), tm = e.map(x => x.t_mouth).sort((a, b) => a - b), t = [], A = [], B = [], Q = [];
+    for (let i = 1; i <= n; i++) { t.push(i); const a = searchRight(tm, i), bb = searchRight(tb, i); A.push(a); B.push(bb); Q.push(Math.max(a - bb, 0)); }
+    return { t, A, B, Q };
+  }
+  function idc(times, dur, w) {
+    if (dur < 3 * w || times.length < 5) return NaN;
+    const nb = Math.floor((dur - (dur % w)) / w + 1e-9); if (nb < 1) return NaN;
+    const c = new Array(nb).fill(0); for (const x of times) { let i = Math.floor(x / w); if (i === nb && x <= nb * w) i = nb - 1; if (i >= 0 && i < nb) c[i]++; }
+    const m = meanOf(c); return m > 0 && c.length > 2 ? varS(c) / m : NaN;
+  }
+  function features(clipsTimes, durs) {
+    let h = []; clipsTimes.forEach(t => { const s = t.slice().sort((a, b) => a - b); for (let i = 1; i < s.length; i++) h.push(s[i] - s[i - 1]); });
+    h = h.filter(x => x > 0);
+    const out = [h.length > 2 ? stdOf(h) / meanOf(h) : NaN];
+    for (const w of [5, 10, 30, 60]) { const v = nums(clipsTimes.map((t, i) => idc(t, durs[i], w))); out.push(v.length ? meanOf(v) : NaN); }
+    return out;
+  }
+  async function fitArrivalModels(eventTimes, durs, reps = 60) {
+    const n = eventTimes.reduce((s, t) => s + t.length, 0), T = durs.reduce((s, d) => s + d, 0), obs = features(eventTimes, durs), rate = T > 0 ? n / T : 0;
+    const res = { n_events: n, duration_s: T, event_rate_per_min: rate * 60, cv: obs[0], idc: { "5s": obs[1], "10s": obs[2], "30s": obs[3], "60s": obs[4] }, models: [] };
+    const use = obs.map(isNum);
+    if (n < 8 || rate <= 0 || !use.some(Boolean)) { res.verdict = "insufficient"; res.best = null; res.message = "Too few arrivals to compare arrival models; add more or longer clips (15-30 min in total)."; return res; }
+    const L = v => Math.log(v + 1e-3);
+    for (const m of MODELS) {
+      const sims = []; for (let r = 0; r < reps; r++) sims.push(features(durs.map((d, k) => Arrivals.make(m, rate, d, 1000 * r + k)), durs));
+      const col = j => sims.map(s => s[j]);
+      const z = []; obs.forEach((o, j) => { if (!use[j]) return; z.push(Math.abs((L(o) - L(meanOf(col(j)))) / ((stdOf(col(j).filter(isNum).map(L)) || 0) + 0.05))); });
+      res.models.push({ model: m, mean_abs_z: meanOf(z), sim_cv: meanOf(col(0)), sim_idc_10s: meanOf(col(2)) });
+      await pause();
+    }
+    res.models.sort((a, b) => a.mean_abs_z - b.mean_abs_z);
+    const b = res.models[0], s2 = res.models[1]; res.best = b.model;
+    res.verdict = (n >= 100 && b.mean_abs_z < 1.5 && s2.mean_abs_z > 1.3 * b.mean_abs_z) ? "reliable" : n >= 30 ? "tentative" : "insufficient";
+    res.message = { reliable: `${b.model} fits clearly best.`, tentative: `${b.model} fits best, but other models are not ruled out; more video would settle it.`,
+      insufficient: `${b.model} fits best so far, but ${n} arrivals are too few to choose; aim for 100+ (15-30 min of video).` }[res.verdict];
+    if (T < 360) res.message += " Clips shorter than two train headways cannot show train-platoon periodicity.";
+    return res;
+  }
+  function caParams(meas, cal, share, nogap, times, sizes, seed) {
+    const belt = isNum(meas.belt_speed_steps_s) ? meas.belt_speed_steps_s : 1.25;
+    return { arrival_rate: 0.5, p_group_pct: meas.group_event_pct, p_walk_pct: meas.walk_pct_eligible, walk_left_stand_right: false, strategy_I: false,
+      direction: cal.c.direction || "up", p_baggage_pct: 0, entry_hesitation_prob: 0, group_breakup_prob: 0, group_breakup_blocked_ticks: 500,
+      n_steps: Math.round(cal.c.total_steps || 30), step_length_m: cal.depth, step_height_m: 0.231, escalator_speed_mps: belt * cal.depth,
+      p_share_step: share, p_no_gap_ok: nogap, walker_board_gap: false, wlsr_compliance: 0, seed,
+      arrival_mode: "trace", arrival_times: times, arrival_sizes: sizes.map(s => Math.min(s, 6)) };
+  }
+  function runCA(p, dur) {                    // runner.run with dt = 1 s
+    const sim = new EscalatorCA(p), t = [], q = [], occ = [], out = [], cin = []; let nxt = 1;
+    while (sim.t < dur) { sim.step();
+      if (sim.t >= nxt) { const ids = new Set(); sim.grid.forEach(l => l.forEach(x => { if (x) ids.add(x.id); }));
+        t.push(sim.t); q.push(sim.queueLen()); occ.push(ids.size); out.push(sim.cumOut); cin.push(sim.cumIn); nxt += 1; } }
+    return { t, queue: q, cum_in: cin, metrics: summarizeSim(sim, 0, t, q, occ, out) };
+  }
+  function replayClip(meas, cal, share, nogap, e, dur, seed) {
+    const g = new Map(); e.forEach(x => { const o = g.get(x.group) || { t: Infinity, size: 0 }; o.t = Math.min(o.t, x.t_mouth); o.size++; g.set(x.group, o); });
+    const gs = [...g.values()].sort((a, b) => a.t - b.t);
+    return runCA(caParams(meas, cal, share, nogap, gs.map(x => x.t), gs.map(x => x.size), seed), Math.max(dur, 5));
+  }
+  async function tuneCA(meas, cal, ev, durs, hasQueue, say) {
+    const rows = []; let done = 0;
+    for (const sh of GRID_SHARE) for (const ng of GRID_NOGAP) {
+      const eb = [], eq = [], dl = [];
+      for (let c = 0; c < durs.length; c++) {
+        const e = ev.filter(x => x.clip === c && x.boarded); if (e.length < 2) continue;
+        const o = seriesObs(e, durs[c]);
+        for (const sd of [0, 1]) { const r = replayClip(meas, cal, sh, ng, e, durs[c], sd), n = Math.min(o.t.length, r.cum_in.length);
+          let sb = 0, sq = 0; for (let i = 0; i < n; i++) { sb += (r.cum_in[i] - o.B[i]) ** 2; sq += (r.queue[i] - o.Q[i]) ** 2; }
+          eb.push(Math.sqrt(sb / n)); eq.push(Math.sqrt(sq / n)); dl.push(r.metrics.mean_delay_s || 0); }
+      }
+      if (eb.length) rows.push({ p_share_step: sh, p_no_gap_ok: ng, boarding_rmse: meanOf(eb), queue_rmse: meanOf(eq), sim_mean_delay_s: meanOf(dl) });
+      done++; say(done / 20, `Tuning the CA: boarding setting ${done} of 20`); await pause();
+      if (cancelled) throw new Error("CANCELLED");
+    }
+    if (!rows.length) return null;
+    const od = meas.mean_delay_s;
+    rows.forEach(r => { r.delay_err = isNum(od) ? Math.abs(r.sim_mean_delay_s - od) : 0; });
+    const mn = k => Math.min(...rows.map(r => r[k])), mb = Math.max(mn("boarding_rmse"), 0.05), mq = Math.max(mn("queue_rmse"), 0.05), md = Math.max(mn("delay_err"), 0.1);
+    rows.forEach(r => { r.score = r.boarding_rmse / mb + (hasQueue ? r.queue_rmse / mq : 0) + (hasQueue ? r.delay_err / md : 0); });
+    rows.sort((a, b) => a.score - b.score);
+    const spread = (Math.max(...rows.map(r => r.boarding_rmse)) - mn("boarding_rmse")) / mb;
+    return { grid: rows.map(r => Object.fromEntries(Object.entries(r).map(([k, v]) => [k, r3(v)]))), best: { p_share_step: rows[0].p_share_step, p_no_gap_ok: rows[0].p_no_gap_ok },
+      identifiable: spread > 0.25, note: spread > 0.25 ? "The boarding settings are well identified by this video."
+        : "The grid is nearly flat: queues were too short to tell the boarding settings apart. A crowded period (the escalator at capacity) is needed to calibrate them." };
+  }
+
+  async function analyse(clips, calD, name, say) {
+    const cal = Calib(calD), durs = clips.map(c => c.duration_s);
+    let ev = [], S = [];
+    clips.forEach((c, i) => { const r = personEvents(c.tracks, cal, i); ev = ev.concat(r.ev); S = S.concat(r.samples); });
+    say(0.1, "Measuring escalator parameters"); await pause();
+
+    const belt = beltSpeed(ev.map(e => e.ride_speed).filter(isNum));
+    const thr = isNum(belt) ? belt + Math.max(WALK_MARGIN[0] * belt, WALK_MARGIN[1]) : NaN;
+    ev.forEach(e => { e.walker = isNum(e.ride_speed) && isNum(thr) && e.ride_speed > thr; });
+    if (isNum(belt)) ev.forEach(e => {
+      if (!e.boarded && isNum(e.s_first_on) && e.s_first_on >= 0 && e.s_first_on <= 2.5 && e.t_first_on > 0.6) {
+        const v = isNum(e.ride_speed) ? e.ride_speed : belt;
+        e.t_board = e.t_first_on - e.s_first_on / v; e.boarded = true; e.board_inferred = true;
+        if (!isNum(e.t_arrive)) { e.t_arrive = e.t_board; e.arrival_known = !cal.app; }
+      } });
+    const riders = ev.filter(e => isNum(e.ride_speed));
+    const onMap = new Map(); S.forEach(s => { if (!s.on) return; if (!onMap.has(s.pid)) onMap.set(s.pid, new Map()); onMap.get(s.pid).set(s.frame, s.s); });
+    findGroups(ev, cal, onMap);
+    let board = ev.filter(e => e.boarded);
+    const eligible = board.filter(e => (isNum(e.group_size) ? e.group_size : 1) <= 2 && isNum(e.ride_speed));
+    const firstOfGroup = []; { const seen = new Set(); board.slice().sort((a, b) => a.clip - b.clip || a.t_board - b.t_board).forEach(e => { if (!seen.has(e.group)) { seen.add(e.group); firstOfGroup.push(e); } }); }
+    const nEvents = firstOfGroup.length, groupEvents = firstOfGroup.filter(e => e.group_size > 1).length;
+
+    const hasApp = !!cal.app; let tFree = NaN, delays = [];
+    ev.forEach(e => { e.t_mouth = e.t_board; });
+    if (hasApp && board.length) {
+      const known = board.filter(e => e.arrival_known && isNum(e.t_arrive)), allb = board.filter(e => isNum(e.t_arrive));
+      known.forEach(e => { e.in_zone = e.t_board - e.t_arrive; e.q_at = allb.filter(o => o.clip === e.clip && o.id !== e.id && o.t_arrive <= e.t_arrive && o.t_board > e.t_arrive).length; });
+      if (known.length) { const free = known.filter(e => e.q_at === 0).map(e => e.in_zone);
+        tFree = free.length >= 3 ? median(free) : quantile(known.map(e => e.in_zone), 0.25); delays = known.map(e => e.in_zone - tFree); }
+      ev.forEach(e => { if (e.boarded && e.arrival_known) e.t_mouth = e.t_arrive + (isNum(tFree) ? tFree : 0); if (e.boarded) e.t_mouth = Math.min(e.t_mouth, e.t_board); });
+    }
+    const qSeries = durs.map((d, c) => { const e = ev.filter(x => x.clip === c && x.boarded);
+      if (!e.length) { const n = Math.floor(d), z = new Array(n).fill(0); return { t: z.map((_, i) => i + 1), boarded: z.slice(), reached: z.slice(), queue: z.slice() }; }
+      const o = seriesObs(e, d); return { t: o.t, boarded: o.B, reached: o.A, queue: o.Q }; });
+
+    const perFrame = new Map(), framesByClip = new Map();
+    S.forEach(s => { if (!framesByClip.has(s.clip)) framesByClip.set(s.clip, new Set()); framesByClip.get(s.clip).add(s.frame);
+      if (s.on) { const k = s.clip + ":" + s.frame; if (!perFrame.has(k)) perFrame.set(k, new Set()); perFrame.get(k).add(s.id); } });
+    const pf = [...perFrame.values()].map(x => x.size), framesAll = [...framesByClip.values()].reduce((s, x) => s + x.size, 0);
+    const occAll = pf.reduce((s, x) => s + x, 0) / Math.max(framesAll, 1) / cal.N, occBusy = pf.length ? meanOf(pf) / cal.N : 0;
+
+    const durTotal = durs.reduce((s, d) => s + d, 0), vMps = isNum(belt) ? belt * cal.depth : NaN;
+    const tbAll = board.map(e => e.t_board).sort((a, b) => a - b), hw = []; for (let i = 1; i < tbAll.length; i++) hw.push(tbAll[i] - tbAll[i - 1]);
+    const sizes = {}; firstOfGroup.forEach(e => { sizes[e.group_size] = (sizes[e.group_size] || 0) + 1; });
+    const walkersR = riders.filter(e => e.walker);
+    const meas = {
+      clips: clips.length, duration_s: durTotal, people_tracked_near_escalator: ev.length, boardings: board.length, arrival_events: nEvents,
+      arrival_rate_per_min: durTotal ? board.length / durTotal * 60 : 0, event_rate_per_min: durTotal ? nEvents / durTotal * 60 : 0,
+      group_person_pct: board.length ? board.filter(e => e.group_size > 1).length / board.length * 100 : 0,
+      group_event_pct: nEvents ? groupEvents / nEvents * 100 : 0,
+      group_sizes: Object.fromEntries(Object.keys(sizes).sort((a, b) => a - b).map(k => [String(k), sizes[k]])),
+      belt_speed_steps_s: belt, belt_speed_mps: vMps, riders_measured: riders.length,
+      walk_pct: riders.length ? walkersR.length / riders.length * 100 : NaN,
+      walk_pct_eligible: eligible.length ? eligible.filter(e => e.walker).length / eligible.length * 100 : 0,
+      left_lane_pct: riders.length ? riders.filter(e => e.lane_u < cal.W / 2).length / riders.length * 100 : NaN,
+      walkers_left_pct: walkersR.length ? walkersR.filter(e => e.lane_u < cal.W / 2).length / walkersR.length * 100 : NaN,
+      occupancy_ped_per_step: occAll, occupancy_when_busy: occBusy,
+      boarding_flow_ped_min: durTotal ? board.length / durTotal * 60 : 0,
+      boarding_headway_median_s: board.length > 2 ? median(hw) : NaN,
+      free_walk_time_s: tFree, mean_delay_s: delays.length ? meanOf(delays) : NaN, p95_delay_s: delays.length ? quantile(delays, 0.95) : NaN,
+      max_queue_ped: Math.max(0, ...qSeries.map(q => q.queue.length ? Math.max(...q.queue) : 0)),
+      approach_speed_mps: median(ev.map(e => e.approach_speed_mps)), approach_area_m2: cal.area, approach_area_estimated: !!calD.approach_area_estimated,
+    };
+    const warns = [];
+    if (isNum(vMps) && !(vMps >= 0.4 && vMps <= 0.8)) warns.push(`Belt speed ${vMps.toFixed(2)} m/s is outside the usual 0.4-0.8 m/s: check the number of steps in the marked stretch (the cyan lines must sit on the step edges). Walking % depends on it.`);
+    if (riders.length < 10) warns.push(`Only ${riders.length} riders measured: belt speed and walking % are rough.`);
+    if (board.length < 30) warns.push(`Only ${board.length} boardings: rates and group % are rough; longer or more clips help.`);
+    meas.warnings = warns;
+
+    const cf = PLOS.REF_SHARE * 2 * (isNum(vMps) ? vMps : 0.5) / cal.depth * 60 / cal.W;
+    let peak = 0;
+    durs.forEach((d, c) => { const tb = ev.filter(x => x.clip === c && x.boarded).map(x => x.t_board);
+      if (d >= 24) { for (let a = 0; a <= d - 24 + 1e-9; a += 24) peak = Math.max(peak, tb.filter(x => x >= a && x < a + 24).length / 0.4 / cal.W); }
+      else if (d > 0) peak = Math.max(peak, tb.length / (d / 60) / cal.W); });
+    const los = { reference_capacity_ped_m_min: Math.round(cf * 10) / 10, peak_flow_ped_m_min: Math.round(peak * 10) / 10, peak_vc: Math.round(peak / cf * 1000) / 1000, los_vc: PLOS.letter(peak / cf, 4, "vc") };
+    if (hasApp && cal.area) { const md = meas.max_queue_ped / cal.area; los.max_density = Math.round(md * 100) / 100; los.los_density = PLOS.letter(md, 4, "density"); }
+    if (isNum(meas.approach_speed_mps)) { const v = meas.approach_speed_mps; los.los_speed = ([[1.16, "A"], [0.80, "B"], [0.48, "C"], [0.11, "D"]].find(([lo]) => v > lo) || [0, "E"])[1]; }
+    const parts = ["los_vc", "los_density", "los_speed"].map(k => los[k]).filter(Boolean);
+    los.governing_los = parts.length ? parts.reduce((a, b) => "ABCDEF".indexOf(b) > "ABCDEF".indexOf(a) ? b : a) : null;
+    if (durTotal < 60) los.note = "Short video: the PLOS is based on less than a minute of flow.";
+
+    say(0.3, "Comparing arrival models"); await pause();
+    board = ev.filter(e => e.boarded);
+    const evTimes = clips.map((_, c) => { const seen = new Set(), out = []; board.filter(e => e.clip === c).sort((a, b) => a.t_board - b.t_board).forEach(e => { if (!seen.has(e.group)) { seen.add(e.group); out.push(e.t_mouth); } }); return out; });
+    const afit = await fitArrivalModels(evTimes, durs);
+
+    say(0.6, "Tuning the CA to the video"); await pause();
+    const tune = board.length >= 2 ? await tuneCA(meas, cal, ev, durs, hasApp, (f, m) => say(0.6 + 0.3 * f, m)) : null;
+    const replay = [];
+    if (tune) {
+      const b = tune.best;
+      durs.forEach((d, c) => { const e = ev.filter(x => x.clip === c && x.boarded); if (e.length < 2) return;
+        const r = replayClip(meas, cal, b.p_share_step, b.p_no_gap_ok, e, d, 0);
+        replay.push({ clip: c, t: r.t, boarded: r.cum_in, queue: r.queue, mean_delay_s: r.metrics.mean_delay_s }); });
+      const cp = caParams(meas, cal, b.p_share_step, b.p_no_gap_ok, [1], [1], 0); Object.assign(cp, { arrival_mode: "poisson", arrival_rate: 8.0, arrival_times: null, arrival_sizes: null });
+      const sim = new EscalatorCA(cp); sim.run(300, 10); const o = sim.history.find(h => h.t >= 60).cum_outflow;
+      tune.capacity_pph = (sim.cumOut - o) / 240 * 3600;
+    }
+    const dash = { arrival_rate: Math.round(meas.event_rate_per_min / 60 * 1000) / 1000, p_group_pct: Math.round(meas.group_event_pct * 10) / 10,
+      p_walk_pct: Math.round(meas.walk_pct_eligible * 10) / 10, n_steps: Math.round(calD.total_steps || 30), step_length_m: cal.depth,
+      escalator_speed_mps: isNum(vMps) ? Math.round(vMps * 1000) / 1000 : null, down_escalator: calD.direction === "down", arrival_model: afit.best || "poisson",
+      p_share_step: tune ? tune.best.p_share_step : null, p_no_gap_ok: tune ? tune.best.p_no_gap_ok : null };
+
+    const roles = clips.map((_, c) => { const m = {}; ev.filter(e => e.clip === c).forEach(e => { m[e.tid] = e.walker ? "walker" : e.boarded ? "boarded" : "near"; }); return m; });
+    const people = ev.map(e => ({ clip: e.clip, id: e.id, t_arrive: e.t_arrive, arrival_known: e.arrival_known, t_board: e.t_board, boarded: e.boarded, t_mouth: e.t_mouth,
+      ride_speed: e.ride_speed, walker: e.walker, lane_u: e.lane_u, group: e.group, group_size: e.group_size, approach_speed_mps: e.approach_speed_mps }));
+    const out = { kind: "video", name, analysis_id: "browser", analysed_at: new Date().toISOString().slice(0, 16).replace("T", " "),
+      analysed_in: session ? `this browser (YOLO11n, ${session.opts.imgsz} px, ${session.opts.fps} frames/s, ${Det.ep === "webgpu" ? "WebGPU" : "WebAssembly"})` : "this browser",
+      calibration: calD, clips: clips.map(c => ({ name: c.name, width: c.width, height: c.height, duration_s: c.duration_s })),
+      measured: meas, plos: los, arrival_fit: afit, ca_tuning: tune, replay, observed: qSeries, dashboard_settings: dash };
+    return { analysis: JSON.parse(JSON.stringify(out)), roles, people };
+  }
+
+  /* ------------------------------------------------------------- screens */
+  const $id = id => document.getElementById(id);
+  const escH = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const CSS = `
+.vb-f label { display: block; font-size: 11.5px; text-transform: uppercase; letter-spacing: .08em; margin-bottom: 5px; color: var(--text-2); }
+.vb-f input, .vb-f select { width: 100%; box-sizing: border-box; font: inherit; font-size: 14px; color: #fff; text-shadow: none; padding: 8px 11px; border-radius: 12px;
+  border: 1px solid var(--edge-soft, rgba(255,255,255,.4)); background: rgba(70,30,70,.35); }
+.vb-f select option { color: #222; background: #fff; }
+.vb-f .vb-hint { font-size: 12px; color: var(--muted); margin-top: 4px; line-height: 1.4; }
+.vb-form { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 12px 14px; }
+.vb-bar { height: 10px; border-radius: 999px; background: rgba(255,255,255,.18); overflow: hidden; margin: 10px 0 6px; }
+.vb-bar > i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #5ff2ff, #b98cff, #ff5fa8); transition: width .2s; }
+.vb-steps { margin: 0 0 10px; padding-left: 18px; color: var(--text-2); font-size: 13px; }
+.vb-legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12px; margin-top: 10px; }
+.vb-legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }`;
+  function css() { if (!$id("vb-css")) { const s = document.createElement("style"); s.id = "vb-css"; s.textContent = CSS; document.head.appendChild(s); } }
+
+  // the "Analyse a video here" card on the Video tab
+  function startCard() {
+    css();
+    return `<div class="card paper">
+      <h3 class="sub">Analyse a video here</h3>
+      <p class="small" style="margin-top:0">The video is processed in this browser and never uploaded. A person detector (YOLO11n) finds everyone in each frame, a tracker follows them, and the same measurements as the local tool are made. Use short clips of one escalator from one camera position.</p>
+      <div class="vb-form">
+        <div class="vb-f"><label for="vb-name">Name</label><input type="text" id="vb-name" placeholder="e.g. Rajiv Chowk E2, morning"></div>
+        <div class="vb-f" style="grid-column: span 2"><label for="vb-files">Video file(s)</label><input type="file" id="vb-files" accept="video/*" multiple>
+          <div class="vb-hint">MP4 (H.264) works in every browser. Several clips of the same escalator can be chosen together.</div></div>
+      </div>
+      <div class="btn-row" style="margin-top:12px"><button type="button" class="btn" id="vb-next">Next: mark the escalator</button><span class="small" id="vb-msg"></span></div>
+    </div>`;
+  }
+  function bindStart() {
+    const b = $id("vb-next"); if (!b) return;
+    b.onclick = async () => {
+      const files = [...($id("vb-files").files || [])];
+      if (!files.length) { $id("vb-msg").textContent = "Choose a video file first."; return; }
+      $id("vb-msg").textContent = "Reading the video…";
+      const clips = [];
+      for (const f of files) {
+        const url = URL.createObjectURL(f);
+        try { const v = await openVideo(url); clips.push({ file: f, url, name: f.name, width: v.videoWidth, height: v.videoHeight, duration_s: v.duration }); v.removeAttribute("src"); v.load(); }
+        catch (e) { URL.revokeObjectURL(url); $id("vb-msg").textContent = `${f.name}: ${e.message}`; return; }
+      }
+      if (session) session.clips.forEach(c => { try { URL.revokeObjectURL(c.url); } catch (e) {} });
+      const big = Math.max(...clips.map(c => Math.max(c.width, c.height)));
+      session = { name: $id("vb-name").value.trim() || clips[0].name, clips, cal: null, opts: { imgsz: big > 2000 ? 960 : 640, fps: 10 }, recId: null, roles: null, tracked: null };
+      $id("vb-msg").textContent = ""; showCalibrate();
+    };
+  }
+
+  // marking screen (port of templates/video_calibrate.html)
+  function showCalibrate() {
+    css();
+    const s = session, c0 = s.clips[0], cal = s.cal || {}, total = s.clips.reduce((a, c) => a + c.duration_s, 0);
+    const sc = Math.min(1, 1600 / Math.max(c0.width, c0.height));
+    $id("view-vnew").innerHTML = `
+    <div class="head"><div class="crumbs"><button type="button" data-go="video">Video</button> / Mark the escalator</div><h1>Mark the escalator</h1>
+      <p>${escH(s.name)} · ${s.clips.length} clip${s.clips.length === 1 ? "" : "s"}, ${Math.round(total)} s in total. Click on the frame below. Everything is measured from what you mark here, so take a moment to get it right.</p></div>
+    <div class="section grid g2">
+      <div class="card paper" style="padding:12px">
+        <div style="position:relative;line-height:0"><canvas id="vb-img" style="width:100%;border-radius:14px;display:block"></canvas>
+          <canvas id="vb-draw" style="position:absolute;inset:0;width:100%;height:100%;cursor:crosshair"></canvas></div>
+        <p class="small muted" id="vb-hint" style="margin:10px 4px 0"></p>
+        <div class="btn-row" style="margin:10px 4px 2px"><span class="small">Show frame at</span>
+          <div class="vb-f" style="width:110px"><input type="number" id="vb-t" min="0" max="${c0.duration_s.toFixed(1)}" step="0.5" value="0" aria-label="Frame time in seconds"></div>
+          <span class="small muted">s, to find a moment when the steps are not hidden by people</span></div>
+      </div>
+      <div class="grid" style="align-content:start">
+        <div class="card"><h3 class="sub">1 · Escalator stretch (4 clicks)</h3>
+          <ol class="vb-steps"><li><b>Comb, rider's left</b>: where people step on, on the left side as seen by a rider facing the direction of travel.</li><li><b>Comb, rider's right.</b></li>
+            <li><b>Far end, right</b>: a few steps further along the escalator.</li><li><b>Far end, left.</b></li></ol>
+          <div class="vb-form">
+            <div class="vb-f"><label for="vb-steps">Steps in this stretch</label><input type="number" id="vb-steps" min="1" step="1" value="${cal.steps_in_quad || 10}"><div class="vb-hint">Count the step edges. The lines drawn on the frame should sit on them.</div></div>
+            <div class="vb-f"><label for="vb-dir">Direction</label><select id="vb-dir"><option value="up">Up</option><option value="down" ${cal.direction === "down" ? "selected" : ""}>Down</option></select></div>
+            <div class="vb-f"><label for="vb-width">Step width [m]</label><input type="number" id="vb-width" step="0.05" value="${cal.width_m || 1.0}"></div>
+            <div class="vb-f"><label for="vb-depth">Step depth [m]</label><input type="number" id="vb-depth" step="0.01" value="${cal.step_depth_m || 0.40}"><div class="vb-hint">0.40 m is the standard; only used to convert steps/s to m/s.</div></div>
+            <div class="vb-f"><label for="vb-total">Steps on the whole escalator</label><input type="number" id="vb-total" step="1" value="${cal.total_steps || 30}"><div class="vb-hint">Ride length in the CA; does not affect queues.</div></div>
+          </div>
+          <div class="btn-row" style="margin-top:10px"><button type="button" class="btn small ghost" id="vb-redo">Redo stretch</button></div></div>
+        <div class="card"><h3 class="sub">2 · Approach area (optional)</h3>
+          <p class="small" style="margin-top:0;color:var(--text-2)">Click around the floor area in front of the comb where people walk up and queue, then press Finish. Skip it if the approach is not in view: arrivals are then taken at boarding, and queue, delay and density cannot be measured.</p>
+          <div class="vb-f"><label for="vb-area">Its floor area [m²]</label><input type="number" id="vb-area" step="0.5" value="${cal.approach_area_m2 || ""}" placeholder="estimated if empty"><div class="vb-hint">Estimated from the escalator width if left empty (rough, because of perspective).</div></div>
+          <div class="btn-row" style="margin-top:10px"><button type="button" class="btn small ghost" id="vb-app">Draw area</button><button type="button" class="btn small ghost" id="vb-app-done">Finish area</button><button type="button" class="btn small ghost" id="vb-app-clear">Clear area</button></div></div>
+        <div class="card"><h3 class="sub">3 · Tracking</h3>
+          <div class="vb-form">
+            <div class="vb-f"><label for="vb-sz">Detector input size</label><select id="vb-sz">
+              <option value="640">640 px · fastest</option><option value="960">960 px · finds smaller people</option><option value="1280">1280 px · 4K video, distant people (slow)</option></select></div>
+            <div class="vb-f"><label for="vb-fps">Frames analysed per second</label><input type="number" id="vb-fps" step="1" min="2" max="15" value="${s.opts.fps}"></div>
+          </div>
+          ${s.tracked ? `<label class="check" style="margin-top:8px;display:block"><input type="checkbox" id="vb-retrack"> Track again (only needed after changing the input size or frame rate)</label>` : ""}
+          <div class="btn-row" style="margin-top:14px"><button type="button" class="btn" id="vb-run">Analyse</button><button type="button" class="btn small ghost" id="vb-cancel" hidden>Cancel</button></div>
+          <div id="vb-prog" hidden><div class="vb-bar"><i id="vb-bar"></i></div><p class="small" id="vb-pmsg" style="margin:0"></p></div>
+          <p class="small" id="vb-err" style="margin:10px 0 0"></p>
+          <div id="vb-model" hidden style="margin-top:8px"><div class="vb-f"><label for="vb-onnx">Detector file (yolo11n.onnx)</label><input type="file" id="vb-onnx" accept=".onnx"></div></div>
+          <p class="small muted" style="margin:10px 0 0">Speed: roughly 5–20 frames per second on a recent laptop with WebGPU (Chrome, Edge), 1–3 without. A 1-minute clip at 10 frames/s is 600 frames.</p>
+        </div>
+      </div>
+    </div>`;
+    $id("vb-sz").value = String(s.opts.imgsz);
+    show("vnew");
+    const img = $id("vb-img"), cv = $id("vb-draw"), ictx = img.getContext("2d"), ctx = cv.getContext("2d");
+    img.width = Math.round(c0.width * sc); img.height = Math.round(c0.height * sc);
+    let quad = (cal.escalator_quad || []).map(p => [p[0] * sc, p[1] * sc]), app = (cal.approach_poly || []).map(p => [p[0] * sc, p[1] * sc]);
+    let mode = quad.length === 4 ? "idle" : "quad", appOpen = false, fv = null;
+    async function frameAt(t) { if (!fv) fv = await openVideo(c0.url); await seek(fv, Math.min(Math.max(0, t), c0.duration_s - 0.05)); ictx.drawImage(fv, 0, 0, img.width, img.height); draw(); }
+    function unitH(q) { return homography([[0, 0], [1, 0], [1, 1], [0, 1]], q); }
+    function draw() {
+      cv.width = img.clientWidth * devicePixelRatio; cv.height = img.clientHeight * devicePixelRatio;
+      const k = cv.width / img.width, dp = devicePixelRatio; ctx.clearRect(0, 0, cv.width, cv.height); ctx.lineWidth = 2 * dp;
+      if (app.length) { ctx.beginPath(); app.forEach((p, i) => i ? ctx.lineTo(p[0] * k, p[1] * k) : ctx.moveTo(p[0] * k, p[1] * k)); if (!appOpen) ctx.closePath();
+        ctx.fillStyle = "rgba(255,215,106,.22)"; ctx.fill(); ctx.strokeStyle = "#ffd76a"; ctx.stroke();
+        app.forEach(p => { ctx.beginPath(); ctx.arc(p[0] * k, p[1] * k, 4 * dp, 0, 7); ctx.fillStyle = "#ffd76a"; ctx.fill(); }); }
+      if (quad.length === 4) { const H = unitH(quad.map(p => [p[0] * k, p[1] * k])), n = Math.max(1, +$id("vb-steps").value || 1);
+        ctx.strokeStyle = "rgba(95,242,255,.9)"; ctx.lineWidth = 1.2 * dp;
+        for (let i = 0; i <= n; i++) { const a = H(0, i / n), c = H(1, i / n); ctx.beginPath(); ctx.moveTo(...a); ctx.lineTo(...c); ctx.stroke(); }
+        ctx.strokeStyle = "#ff5fa8"; ctx.lineWidth = 3 * dp; ctx.beginPath(); ctx.moveTo(...H(0, 0)); ctx.lineTo(...H(1, 0)); ctx.stroke(); }
+      quad.forEach((p, i) => { ctx.beginPath(); ctx.arc(p[0] * k, p[1] * k, 6 * dp, 0, 7); ctx.fillStyle = i < 2 ? "#ff5fa8" : "#5ff2ff"; ctx.fill();
+        ctx.fillStyle = "#fff"; ctx.font = `${14 * dp}px Inter, sans-serif`; ctx.fillText(String(i + 1), p[0] * k + 8 * dp, p[1] * k - 8 * dp); });
+      $id("vb-hint").textContent = mode === "quad" ? `Step 1: click corner ${quad.length + 1} of 4 (${["comb, rider's left", "comb, rider's right", "far end, right", "far end, left"][quad.length]}).`
+        : appOpen ? "Step 2: click around the approach area, then press Finish area." : "Pink line = where people step on. Cyan lines should sit on the step edges; if not, change the step count or redo the stretch.";
+    }
+    cv.addEventListener("click", e => { const r = cv.getBoundingClientRect(), x = (e.clientX - r.left) / r.width * img.width, y = (e.clientY - r.top) / r.height * img.height;
+      if (mode === "quad") { quad.push([x, y]); if (quad.length === 4) mode = "idle"; } else if (appOpen) app.push([x, y]); draw(); });
+    $id("vb-redo").onclick = () => { quad = []; mode = "quad"; appOpen = false; draw(); };
+    $id("vb-app").onclick = () => { app = []; appOpen = true; mode = "idle"; draw(); };
+    $id("vb-app-done").onclick = () => { appOpen = false; if (app.length < 3) app = []; draw(); };
+    $id("vb-app-clear").onclick = () => { app = []; appOpen = false; draw(); };
+    $id("vb-steps").addEventListener("input", draw);
+    $id("vb-t").addEventListener("change", () => frameAt(+$id("vb-t").value || 0));
+    window.addEventListener("resize", () => { if (!$id("view-vnew").hidden) draw(); });
+    $id("vb-onnx").addEventListener("change", async e => { const f = e.target.files[0]; if (!f) return; Det.userModel = await f.arrayBuffer(); $id("vb-err").textContent = "Detector file loaded. Press Analyse again."; });
+    frameAt(0);
+
+    $id("vb-run").onclick = async () => {
+      if (quad.length !== 4) { $id("vb-err").textContent = "Click all four corners of the escalator stretch first."; return; }
+      if (appOpen) { $id("vb-err").textContent = "Press Finish area first."; return; }
+      const area = parseFloat($id("vb-area").value);
+      s.cal = { escalator_quad: quad.map(p => [p[0] / sc, p[1] / sc]), approach_poly: app.map(p => [p[0] / sc, p[1] / sc]), steps_in_quad: +$id("vb-steps").value,
+        width_m: +$id("vb-width").value || 1.0, step_depth_m: +$id("vb-depth").value || 0.40, total_steps: Math.round(+$id("vb-total").value || 30),
+        approach_area_m2: isNum(area) && area > 0 ? area : null, direction: $id("vb-dir").value, analysis_fps: +$id("vb-fps").value || 10, detector: "browser-yolo11n" };
+      const opts = { imgsz: +$id("vb-sz").value, fps: Math.min(15, Math.max(2, +$id("vb-fps").value || 10)) };
+      const retrack = !s.tracked || ($id("vb-retrack") && $id("vb-retrack").checked) || s.tracked.imgsz !== opts.imgsz || s.tracked.fps !== opts.fps;
+      s.opts = opts; cancelled = false;
+      $id("vb-run").disabled = true; $id("vb-cancel").hidden = false; $id("vb-prog").hidden = false; $id("vb-err").textContent = ""; $id("vb-model").hidden = true;
+      const say = (f, m) => { $id("vb-bar").style.width = Math.round(Math.min(1, f) * 100) + "%"; $id("vb-pmsg").textContent = m; };
+      try {
+        if (retrack) {
+          await Det.init(m => say(0, m));
+          for (let i = 0; i < s.clips.length; i++) { const n = s.clips.length;
+            s.clips[i].tracks = await trackClip(s.clips[i], opts.fps, opts.imgsz, (f, m) => say(0.85 * (i + f) / n, `Clip ${i + 1} of ${n}: ${m}`)); }
+          s.tracked = { imgsz: opts.imgsz, fps: opts.fps };
+        }
+        const res = await analyse(s.clips, JSON.parse(JSON.stringify(s.cal)), s.name, (f, m) => say(0.85 + 0.15 * f, m));
+        s.roles = res.roles; s.people = res.people;
+        let rec = s.recId ? Store.get(s.recId) : null;
+        if (rec) { rec.analysis = res.analysis; rec.saved_at = res.analysis.analysed_at; }
+        else { const num = Store.nextNum("video"); rec = { id: "video-" + String(num).padStart(4, "0"), kind: "video", num, label: s.name, saved_at: res.analysis.analysed_at, analysis: res.analysis }; }
+        await Store.put(rec); s.recId = rec.id; toast("Video analysed."); window.openVideo ? window.openVideo(rec.id) : null;
+      } catch (e) {
+        if (e.message === "CANCELLED") $id("vb-err").textContent = "Cancelled.";
+        else if (e.message === "MODEL_MISSING") { $id("vb-err").innerHTML = "The detector file <code>models/yolo11n.onnx</code> was not found next to this page. On GitHub, upload it into a folder named <code>models</code> beside <code>index.html</code>. Or choose the file here:"; $id("vb-model").hidden = false; }
+        else { $id("vb-err").textContent = "Could not analyse: " + (e.message || e); console.error(e); }
+      } finally { const r = $id("vb-run"); if (r) { r.disabled = false; $id("vb-cancel").hidden = true; } }
+    };
+    $id("vb-cancel").onclick = () => { cancelled = true; };
+  }
+
+  // extra parts of the result view when the video is still open in this browser
+  function afterOpen(rec, headEl) {
+    css();
+    const row = headEl.querySelector(".btn-row");
+    const dl = document.createElement("button"); dl.type = "button"; dl.className = "btn small ghost"; dl.textContent = "Download analysis.json";
+    dl.onclick = () => offerFile((rec.label || "video").replace(/[^\w.-]+/g, "_") + "_analysis.json", JSON.stringify(rec.analysis, null, 1)); row.appendChild(dl);
+    if (rec.analysis.analysed_in) { const p = document.createElement("p"); p.className = "small muted"; p.style.margin = "8px 0 0"; p.textContent = "Analysed in " + rec.analysis.analysed_in + "."; headEl.appendChild(p); }
+    if (!session || session.recId !== rec.id || !session.clips[0].tracks) return;
+    const re = document.createElement("button"); re.type = "button"; re.className = "btn small ghost"; re.textContent = "Change the marking and re-measure"; re.onclick = showCalibrate; row.appendChild(re);
+    const tc = document.createElement("button"); tc.type = "button"; tc.className = "btn small ghost"; tc.textContent = "Download tracks (CSV)";
+    tc.onclick = () => offerFile((rec.label || "video").replace(/[^\w.-]+/g, "_") + "_tracks.csv",
+      toCsv(session.clips.flatMap((c, i) => c.tracks.map(r => ({ clip: i, frame: r.frame, t_s: r.t_s.toFixed(2), id: r.id, x1: r.x1.toFixed(1), y1: r.y1.toFixed(1), x2: r.x2.toFixed(1), y2: r.y2.toFixed(1), conf: r.conf.toFixed(3), foot_x: r.foot_x.toFixed(1), foot_y: r.foot_y.toFixed(1) })))));
+    row.appendChild(tc);
+    const card = document.createElement("div"); card.className = "section card paper";
+    card.innerHTML = `<h3 class="sub">Check the tracking</h3>
+      <div class="btn-row" style="margin-bottom:8px">${session.clips.map((c, i) => `<button type="button" class="btn small ghost" data-vbclip="${i}">Clip ${i + 1}</button>`).join("")}</div>
+      <div style="position:relative;line-height:0;display:flex;justify-content:center"><video id="vb-vid" controls muted playsinline style="max-width:100%;max-height:620px;border-radius:14px"></video><canvas id="vb-ov" style="position:absolute;pointer-events:none"></canvas></div>
+      <div class="vb-legend"><span><i style="background:#5ff2ff"></i>boarded, standing</span><span><i style="background:#ff5fa8"></i>walking on the escalator</span><span><i style="background:#ffd76a"></i>near the escalator, did not board</span><span><i style="background:#fff;opacity:.4"></i>other people</span></div>
+      <p class="small muted">Pink line: where people step on. Cyan: the marked stretch. If boxes are missing or swap between people, counts will be off; a higher, steadier camera helps.</p>`;
+    headEl.after(card);
+    const vid = card.querySelector("#vb-vid"), ov = card.querySelector("#vb-ov"), ctx = ov.getContext("2d"), COL = { boarded: "#5ff2ff", walker: "#ff5fa8", near: "#ffd76a" };
+    const cal = rec.analysis.calibration; let n = 0, frames = null;
+    function load(i) { n = i; const c = session.clips[i]; vid.src = c.url; const m = new Map(); c.tracks.forEach(r => { if (!m.has(r.t_s)) m.set(r.t_s, []); m.get(r.t_s).push(r); }); frames = [...m.entries()].sort((a, b) => a[0] - b[0]); }
+    function at(t) { if (!frames || !frames.length) return []; let lo = 0, hi = frames.length - 1; while (lo < hi) { const m = (lo + hi + 1) >> 1; if (frames[m][0] <= t) lo = m; else hi = m - 1; } return Math.abs(frames[lo][0] - t) < 0.3 ? frames[lo][1] : []; }
+    function loop() {
+      if (!vid.isConnected) return;
+      const c = session.clips[n]; ov.style.left = vid.offsetLeft + "px"; ov.style.top = vid.offsetTop + "px"; ov.style.width = vid.clientWidth + "px"; ov.style.height = vid.clientHeight + "px";
+      ov.width = vid.clientWidth; ov.height = vid.clientHeight; const k = vid.clientWidth / c.width; ctx.clearRect(0, 0, ov.width, ov.height);
+      const poly = (pts, stroke, fill) => { if (!pts || pts.length < 2) return; ctx.beginPath(); pts.forEach((p, i) => i ? ctx.lineTo(p[0] * k, p[1] * k) : ctx.moveTo(p[0] * k, p[1] * k)); ctx.closePath(); if (fill) { ctx.fillStyle = fill; ctx.fill(); } ctx.strokeStyle = stroke; ctx.lineWidth = 1.5; ctx.stroke(); };
+      poly(cal.approach_poly, "#ffd76a", "rgba(255,215,106,.10)"); poly(cal.escalator_quad, "#5ff2ff");
+      const q = cal.escalator_quad; ctx.strokeStyle = "#ff5fa8"; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(q[0][0] * k, q[0][1] * k); ctx.lineTo(q[1][0] * k, q[1][1] * k); ctx.stroke();
+      const roles = (session.roles || [])[n] || {};
+      for (const r of at(vid.currentTime)) { const role = roles[r.id], col = COL[role] || "rgba(255,255,255,.4)";
+        ctx.strokeStyle = col; ctx.lineWidth = role ? 2 : 1; ctx.strokeRect(r.x1 * k, r.y1 * k, (r.x2 - r.x1) * k, (r.y2 - r.y1) * k);
+        if (role) { ctx.fillStyle = col; ctx.font = "11px Inter, sans-serif"; ctx.fillText(String(r.id), r.x1 * k + 2, r.y1 * k - 3); } }
+      requestAnimationFrame(loop);
+    }
+    card.querySelectorAll("[data-vbclip]").forEach(b => b.onclick = () => load(+b.dataset.vbclip));
+    load(0); requestAnimationFrame(loop);
+  }
+
+  return { startCard, bindStart, afterOpen, showCalibrate, _test: { analyse, Calib, beltSpeed, features, Tracker, iou } };
+})();
+/* VIDEO-END */
 
 /* ----------------------------------------------------- energy tab (Al-Sharif 2011) */
 /* ENERGY-BEGIN: copied from static/energy.js by share/sync_energy.py; edit that file, not this block */
