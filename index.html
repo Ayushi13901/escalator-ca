@@ -214,6 +214,13 @@ footer { margin-top: 6px; padding: 16px 24px; font-size: 12.5px; display: flex; 
   padding: 10px 18px; border-radius: 999px; font-size: 14px; background: rgba(58,30,62,.9); border: 1px solid var(--edge); box-shadow: var(--glow); }
 code { background: rgba(255,255,255,.14); border: 1px solid var(--hair); border-radius: 8px; padding: 1px 7px; font-size: 12.5px; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+/* ---- text legibility: brighter secondary text and a soft plum outline so light text reads on the pink glass */
+:root { --text-2: #ffffff; --muted: rgba(255, 250, 253, .95); }
+body { text-shadow: 0 1px 2px rgba(64, 22, 58, .6), 0 0 1px rgba(64, 22, 58, .5); }
+.los-A, .los-B, .los-C, .los-D, .verdict .mark, input, select, textarea, option { text-shadow: none; }
+.head h1, h2.title, .verdict h2 {
+  text-shadow: none; filter: drop-shadow(0 1px 1.5px rgba(64, 22, 58, .55)) drop-shadow(0 0 14px rgba(255, 120, 190, .45));
+}
 </style>
 
 <div class="orbs" aria-hidden="true">
@@ -231,6 +238,8 @@ code { background: rgba(255,255,255,.14); border: 1px solid var(--hair); border-
     <div class="nav-links">
       <button type="button" data-go="dashboard" id="nav-dashboard">Run</button>
       <button type="button" data-go="results" id="nav-results">Results</button>
+      <button type="button" data-go="video" id="nav-video">Video</button>
+      <button type="button" data-go="energy" id="nav-energy">Energy</button>
       <button type="button" data-go="method" id="nav-method">Method</button>
     </div>
     <span class="store-chip" id="store-chip">Runs saved in this browser</span>
@@ -335,7 +344,7 @@ code { background: rgba(255,255,255,.14); border: 1px solid var(--hair); border-
         <button type="button" class="btn danger" id="b-del-sel" disabled>Delete selected</button>
         <button type="button" class="btn ghost" id="b-export-csv">Download runs table (CSV)</button>
         <button type="button" class="btn ghost" id="b-backup">Download backup (JSON)</button>
-        <label class="btn ghost file-label" for="f-restore">Restore a backup<input type="file" id="f-restore" accept=".json,application/json"></label>
+        <label class="btn ghost file-label" for="f-restore">Restore a backup or open a video analysis<input type="file" id="f-restore" accept=".json,application/json"></label>
         <span class="muted small" id="cmp-n">Tick runs to compare (2–6) or delete</span>
       </div>
       <div id="runs-table"></div>
@@ -346,9 +355,46 @@ code { background: rgba(255,255,255,.14); border: 1px solid var(--hair); border-
     </div>
   </section>
 
+  <!-- ===================================================== VIDEO -->
+  <section id="view-video" class="view" hidden>
+    <div class="head">
+      <div class="crumbs">Video</div>
+      <h1>Video analyses</h1>
+      <p>Escalator parameters measured from video: arrival rate, groups, walking share, belt speed, the best-fitting arrival model, PLOS and the CA tuned to the video.
+         Open any <code>analysis.json</code> made by the video tool to view it here and use its settings on the dashboard.</p>
+      <div class="btn-row" style="margin-top:14px">
+        <label class="btn file-label" for="f-video">Open a video analysis (analysis.json)<input type="file" id="f-video" accept=".json,application/json"></label>
+      </div>
+    </div>
+    <div class="section"><div id="videos-table"></div></div>
+    <div class="section card paper">
+      <h3 class="sub">Analysing a new video</h3>
+      <p class="small" style="margin-top:0">Finding and tracking people in a video needs the detector that runs on your computer, so a new video is analysed in the local website and then opened here.</p>
+      <ol class="small" style="margin:0;padding-left:20px;line-height:1.7">
+        <li>On your computer, double-click <code>start_website.bat</code> in the <code>escalator</code> folder (or run <code>python web_app.py</code>) and open <code>http://127.0.0.1:5000</code>.</li>
+        <li>Click <b>Video</b>, choose the video file, press <b>Next: mark the escalator</b>, click the four corners of the escalator stretch, then <b>Save and analyse</b>.</li>
+        <li>On the results page, click <b>analysis.json</b> to download it.</li>
+        <li>Here, press <b>Open a video analysis</b> and pick that file. It is kept with your other runs and can be used in the Energy tab too.</li>
+      </ol>
+    </div>
+  </section>
+
   <section id="view-run" class="view" hidden></section>
   <section id="view-compare" class="view" hidden></section>
   <section id="view-study" class="view" hidden></section>
+  <section id="view-videoa" class="view" hidden></section>
+
+  <!-- ===================================================== ENERGY -->
+  <section id="view-energy" class="view" hidden>
+    <div class="head">
+      <div class="crumbs">Energy</div>
+      <h1>Escalator energy</h1>
+      <p>Daily and yearly energy of an escalator after Al-Sharif (2011), <i>Modelling of escalator energy consumption</i>, Energy and Buildings 43, 1382–1391:
+         fixed losses that depend on the rise and the mechanical design, plus the energy to lift (or recovered from) passengers, scaled by how many of them walk.
+         Pick a saved run or video analysis, or enter your own values.</p>
+    </div>
+    <div id="energy"></div>
+  </section>
 
   <!-- ===================================================== METHOD -->
   <section id="view-method" class="view" hidden>
@@ -1071,12 +1117,14 @@ function whiskerPlugin(errors) {
 /* =====================================================================
    10. Views
    ===================================================================== */
-const VIEWS = ["dashboard", "results", "run", "compare", "study", "method"];
+const VIEWS = ["dashboard", "results", "run", "compare", "study", "video", "videoa", "energy", "method"];
 function show(view) {
   VIEWS.forEach(v => { document.getElementById("view-" + v).hidden = v !== view; });
-  const navFor = { dashboard: "dashboard", results: "results", run: "results", compare: "results", study: "results", method: "method" }[view];
-  ["dashboard", "results", "method"].forEach(n => document.getElementById("nav-" + n).classList.toggle("active", n === navFor));
+  const navFor = { dashboard: "dashboard", results: "results", run: "results", compare: "results", study: "results", video: "video", videoa: "video", energy: "energy", method: "method" }[view];
+  ["dashboard", "results", "video", "energy", "method"].forEach(n => document.getElementById("nav-" + n).classList.toggle("active", n === navFor));
   if (view === "results") renderResults();
+  if (view === "video") renderVideos();
+  if (view === "energy") mountEnergy();
   if (view === "dashboard") setTimeout(() => drawGrid(live), 0);
   window.scrollTo(0, 0);
 }
@@ -1270,6 +1318,33 @@ function renderResults() {
     : `<p class="muted">None yet. Start one from the bottom of the <button type="button" class="linkbtn" data-go="dashboard">Run page</button>.</p>`;
   document.querySelectorAll(".cmp-box, .study-box").forEach(b => b.addEventListener("change", updCmp)); updCmp();
 }
+function renderVideos() {
+  const vids = Store.sorted("video");
+  $("videos-table").innerHTML = vids.length ? `<div class="table-wrap"><table>
+    <thead><tr><th>#</th><th>Video analysis</th><th class="num">Duration</th><th class="num">Arrivals /min</th><th class="num">Groups</th><th class="num">Walking</th><th class="num">Belt</th><th>Best arrival model</th><th>PLOS</th><th>Opened</th><th></th></tr></thead>
+    <tbody>${vids.map(v => { const a = v.analysis, m = a.measured, f = a.arrival_fit || {}; return `<tr><td>${v.num}</td>
+      <td><button type="button" class="linkbtn" data-videoa="${esc(v.id)}">${esc(v.label)}</button></td>
+      <td class="num">${f1(m.duration_s)} s</td><td class="num">${f1(m.arrival_rate_per_min)}</td><td class="num">${f1(m.group_person_pct)}%</td>
+      <td class="num">${f1(m.walk_pct)}%</td><td class="num">${f2(m.belt_speed_mps)} m/s</td>
+      <td>${f.best ? esc(ARRIVAL_MODELS[f.best] || f.best) + ` <span class="tag">${esc(f.verdict)}</span>` : "–"}</td><td>${losChip((a.plos || {}).governing_los)}</td>
+      <td class="small muted">${esc(v.saved_at)}</td><td><button type="button" class="btn small danger" data-del="${esc(v.id)}">Delete</button></td></tr>`; }).join("")}</tbody></table></div>`
+    : `<div class="card empty"><h2 class="title">No video analyses yet</h2><p class="muted">Open an <code>analysis.json</code> with the button above. How to make one is explained below.</p></div>`;
+}
+async function importVideo(data) {          // analysis.json from the local video tool
+  const num = Store.nextNum("video");
+  const rec = { id: "video-" + String(num).padStart(4, "0"), kind: "video", num, label: data.name || data.analysis_id || "Video analysis",
+                saved_at: new Date().toISOString().slice(0, 16).replace("T", " "), analysis: data };
+  await Store.put(rec); toast("Video analysis opened."); openVideo(rec.id);
+}
+$("f-video").addEventListener("change", async e => {
+  const f = e.target.files[0]; if (!f) return;
+  try {
+    const data = JSON.parse(await f.text());
+    if (data && data.kind === "video" && data.measured) await importVideo(data);
+    else toast("That file is not an analysis.json from the video tool.");
+  } catch (err) { toast("Could not read that file."); }
+  e.target.value = "";
+});
 function selectedRuns() { return [...document.querySelectorAll(".cmp-box:checked")].map(b => b.value); }
 function selectedAll() { return [...document.querySelectorAll(".cmp-box:checked, .study-box:checked")].map(b => b.value); }
 function updCmp() {
@@ -1281,10 +1356,11 @@ function updCmp() {
 document.addEventListener("click", e => {
   const r = e.target.closest("[data-run]"); if (r) { openRun(r.dataset.run); return; }
   const s = e.target.closest("[data-study]"); if (s) { openStudy(s.dataset.study); return; }
+  const va = e.target.closest("[data-videoa]"); if (va) { openVideo(va.dataset.videoa); return; }
   const d = e.target.closest("[data-del]");
   if (d) {
     if (d.dataset.armed !== "1") { d.dataset.armed = "1"; d.textContent = "Confirm delete"; setTimeout(() => { if (d.isConnected) { d.dataset.armed = ""; d.textContent = "Delete"; } }, 4000); return; }
-    Store.remove(d.dataset.del).then(() => { toast("Deleted"); show("results"); });
+    Store.remove(d.dataset.del).then(() => { toast("Deleted"); show(d.dataset.del.startsWith("video") ? "video" : "results"); });
   }
 });
 $("b-compare").addEventListener("click", () => openCompare(selectedRuns()));
@@ -1315,10 +1391,12 @@ $("b-backup").addEventListener("click", () => {
 $("f-restore").addEventListener("change", async e => {
   const f = e.target.files[0]; if (!f) return;
   try {
-    const data = JSON.parse(await f.text()), items = (data && Array.isArray(data.items)) ? data.items : [];
+    const data = JSON.parse(await f.text());
+    if (data && data.kind === "video" && data.measured) { e.target.value = ""; await importVideo(data); return; }
+    const items = (data && Array.isArray(data.items)) ? data.items : [];
     let n = 0;
     for (const it of items) {
-      if (!it || (it.kind !== "run" && it.kind !== "study") || typeof it.id !== "string" || !/^(run|study)-\d{1,6}$/.test(it.id) || Store.get(it.id)) continue;
+      if (!it || !["run", "study", "video"].includes(it.kind) || typeof it.id !== "string" || !/^(run|study|video)-\d{1,6}$/.test(it.id) || Store.get(it.id)) continue;
       await Store.put(it, true); n++;
     }
     toast(n ? `Restored ${n} item${n === 1 ? "" : "s"}.` : "Nothing new in that backup.");
@@ -1482,6 +1560,324 @@ function openStudy(id) {
     line(POLICY_SHORT.wlsr_strict, w.map((x, i) => ({ x, y: s.sweep[i].wlsr_strict })), C.violet, { pointRadius: 4 }),
     line(POLICY_SHORT.stand_only, [{ x: w[0], y: soCap }, { x: w[w.length - 1], y: soCap }], C.pink, { borderDash: [6, 4] })] },
     options: { scales: { x: axX("People intending to walk [%]"), y: axY("Saturated capacity [ped/h]", { beginAtZero: false }) }, interaction: { mode: "nearest", intersect: false } } });
+}
+
+/* ----------------------------------------------------- video analysis (from the local video tool) */
+const f1 = v => (v === null || v === undefined || Number.isNaN(v)) ? "–" : (+v).toFixed(1);
+const f2 = v => (v === null || v === undefined || Number.isNaN(v)) ? "–" : (+v).toFixed(2);
+function openVideo(id) {
+  const rec = Store.get(id); if (!rec) return;
+  const a = rec.analysis, m = a.measured, f = a.arrival_fit || {}, P = a.plos || {}, T = a.ca_tuning, cal = a.calibration || {}, ds = a.dashboard_settings || {};
+  const row = (k, v) => `<tr><td>${k}</td><td class="num">${v}</td></tr>`;
+  $("view-videoa").innerHTML = `
+  <div class="head"><div class="crumbs"><button type="button" data-go="video">Video</button> / Video analysis ${rec.num}</div><h1>${esc(rec.label)}</h1>
+    <p>${m.clips} clip${m.clips === 1 ? "" : "s"}, ${f1(m.duration_s)} s · ${esc(cal.direction || "")}-escalator · analysed ${esc(a.analysed_at || "")} on your computer</p>
+    <div class="btn-row" style="margin-top:14px"><button type="button" class="btn" id="va-use">Use these settings on the dashboard</button><button type="button" class="btn small danger" data-del="${esc(rec.id)}">Delete</button></div></div>
+  ${(m.warnings || []).length ? `<div class="section"><div class="card" style="background:rgba(255,46,99,.28)">${m.warnings.map(w => `<p class="small" style="margin:4px 0">${esc(w)}</p>`).join("")}</div></div>` : ""}
+  <div class="section grid g4">
+    <div class="kpi"><div class="k">Arrivals</div><div class="v">${f1(m.arrival_rate_per_min)}<span class="u">per min</span></div><div class="note">${m.boardings} people boarded</div></div>
+    <div class="kpi"><div class="k">In groups</div><div class="v">${f1(m.group_person_pct)}<span class="u">% of people</span></div><div class="note">${f1(m.group_event_pct)}% of arrival events</div></div>
+    <div class="kpi"><div class="k">Walking on the escalator</div><div class="v">${f1(m.walk_pct)}<span class="u">%</span></div><div class="note">${m.riders_measured} riders measured</div></div>
+    <div class="kpi"><div class="k">Belt speed</div><div class="v">${f2(m.belt_speed_mps)}<span class="u">m/s</span></div><div class="note">${f2(m.belt_speed_steps_s)} steps/s</div></div>
+  </div>
+  <div class="section grid g2">
+    <div class="card paper"><h3 class="sub">Measured parameters</h3><div class="table-wrap"><table><tbody>
+      ${row("Arrival events (single or group)", `${m.arrival_events} · ${f1(m.event_rate_per_min)} per min`)}
+      ${row("Group sizes (events)", Object.entries(m.group_sizes || {}).map(([k, n]) => `${parseInt(k)}: ${n}`).join(", ") || "–")}
+      ${row("Walking, singles and pairs", f1(m.walk_pct_eligible) + "%")}
+      ${row("Riders on the left side", f1(m.left_lane_pct) + "%")}
+      ${row("Step occupancy (all / busy)", `${f2(m.occupancy_ped_per_step)} / ${f2(m.occupancy_when_busy)} ped/step`)}
+      ${row("Boarding flow", f1(m.boarding_flow_ped_min) + " ped/min")}
+      ${row("Median gap between boardings", f2(m.boarding_headway_median_s) + " s")}
+      ${row("Queueing delay, mean / 95th pct", `${f1(m.mean_delay_s)} / ${f1(m.p95_delay_s)} s`)}
+      ${row("Peak queue", f1(m.max_queue_ped) + " ped")}
+      ${row("Approach speed (approximate)", f2(m.approach_speed_mps) + " m/s")}
+      ${row("Approach area", f1(m.approach_area_m2) + " m²" + (m.approach_area_estimated ? " (estimated)" : ""))}
+    </tbody></table></div></div>
+    <div class="card paper"><h3 class="sub">Best-fitting arrival model</h3>
+      <p style="margin-top:0"><b>${f.best ? esc(ARRIVAL_MODELS[f.best] || f.best) : "Not decided"}</b> ${f.verdict ? `<span class="tag">${esc(f.verdict)}</span>` : ""}</p>
+      <p class="small">${esc(f.message || "")}</p>
+      ${(f.models || []).length ? `<div class="table-wrap"><table><thead><tr><th>Arrival model</th><th class="num">Mismatch (lower = better)</th></tr></thead><tbody>
+        ${f.models.map((r, i) => `<tr><td class="${i === 0 ? "best" : ""}">${esc(ARRIVAL_MODELS[r.model] || r.model)}</td><td class="num">${f2(r.mean_abs_z)}</td></tr>`).join("")}</tbody></table></div>` : ""}
+      <h3 class="sub" style="margin-top:18px">PLOS</h3>
+      <div class="plos-hero">${losChip(P.governing_los, "mid")}<div class="small">v/Cf ${f2(P.peak_vc)} ${losChip(P.los_vc)} · density ${f2(P.max_density)} ped/m² ${losChip(P.los_density)} · approach speed ${losChip(P.los_speed)}${P.note ? `<br><span class="muted">${esc(P.note)}</span>` : ""}</div></div>
+    </div>
+  </div>
+  <div class="section card paper"><h3 class="sub">The CA tuned to this video</h3>
+    ${T ? `<p style="margin-top:0">Boarding beside a stranger <b>${f2(T.best.p_share_step)}</b>, right behind one <b>${f2(T.best.p_no_gap_ok)}</b>; tuned capacity <b>${fmtInt(T.capacity_pph)} ped/h</b>. <span class="tag">${T.identifiable ? "identified" : "not identified"}</span></p><p class="small">${esc(T.note)}</p>
+      <div class="chart-box"><canvas id="va-board"></canvas></div><div class="chart-note">Clip 1: cumulative boardings observed (solid) vs the tuned CA replaying the same arrivals (dashed).</div>` : `<p class="muted">Too few boardings to tune the CA.</p>`}
+  </div>`;
+  show("videoa");
+  $("va-use").onclick = () => { setControls(Object.assign(readControls(), ds, { direction: ds.down_escalator ? "down" : "up" })); show("dashboard"); setup();
+    toast("Measured settings loaded. Press Go."); };
+  const o = (a.observed || [])[0], r = (a.replay || []).find(x => x.clip === 0);
+  if (T && o) chart("va-board", { type: "line", data: { datasets: [line("Observed", pts(o.t, o.boarded), C.mint), ...(r ? [line("CA", pts(r.t, r.boarded), C.pink, { borderDash: [6, 4] })] : []),
+    line("Reached the escalator", pts(o.t, o.reached), "rgba(255,255,255,.55)", { borderDash: [2, 3], borderWidth: 1.4 })] },
+    options: { scales: { x: axX(), y: axY("People") }, interaction: { mode: "index", intersect: false } } });
+}
+
+/* ----------------------------------------------------- energy tab (Al-Sharif 2011) */
+/* ENERGY-BEGIN: copied from static/energy.js by share/sync_energy.py; edit that file, not this block */
+/* Escalator energy after Al-Sharif, L. (2011) "Modelling of escalator energy consumption",
+   Energy and Buildings 43, 1382-1391. Same equations as energy.py.
+   Used by templates/energy.html (local website) and, copied between the ENERGY markers by
+   share/sync_energy.py, by share/escalator_ca.html. Edit this file, then run the sync. */
+const Energy = (() => {
+  const G = 9.81, MP = 75, J_PER_KWH = 3.6e6;
+  // key: [label, slope, intercept, paper eq., description]
+  const FIXED = {
+    general: ["General, Method B (recommended)", 0.55, 1.95, "Eq. 2", "Any escalator, mechanical design ignored. Fitted on 7 escalators, r² = 0.90."],
+    method_a: ["General, Method A", 0.52, 2.729, "Eq. 1", "Any escalator, from the last 30 min of a day's power trace. r² = 0.82."],
+    A_low: ["Type A, low rise", 0.90, -0.19, "Eq. 3", "Ball-bearing step chain, chain guidance, involute gearbox (most modern escalators)."],
+    A_high: ["Type A, high rise", 0.79, 1.02, "Eq. 4", "As type A, for high-rise units."],
+    B: ["Type B", 0.49, 8.76, "Eq. 7", "Ball bearings, chain guidance, cavex gearbox (hotter gearbox, larger fixed loss)."],
+    C: ["Type C", 1.56, -4.7, "Eq. 5", "Plain bearings, wheel guidance, involute gearbox (highest friction)."],
+    D: ["Type D", 0.47, 1.74, "Eq. 6", "Ball bearings, wheel guidance, involute gearbox."],
+  };
+  const WALK_SPEED = { up: 0.63, down: 0.66 };       // m/s on 30° escalators (Andrews & Boyes, in the paper)
+  const K_PRESETS = [["0.8", "0.80 · paper's suggested single value"], ["0.901", "0.901 · Table 5, up, off-peak"], ["0.802", "0.802 · Table 5, up, peak"],
+    ["0.797", "0.797 · Table 5, down, off-peak"], ["0.695", "0.695 · Table 5, down, peak"], ["1", "1.00 · nobody walks"]];
+  const STEP_H_VIDEO = 0.24, THETA_VIDEO = Math.atan2(0.24, 0.40);
+
+  const Pf = (r, d) => FIXED[d][1] * r + FIXED[d][2];
+  const kEq14 = (w, ve, vp) => 1 - w * vp / (ve + vp);
+
+  function compute(x) {
+    const sign = x.dir === "up" ? 1 : -1, P = Pf(x.rise, x.design);
+    const Efd = P * x.h_d, Evd = x.p_day * x.g * x.rise * x.mp * x.k / J_PER_KWH, Etd = Efd + sign * Evd;
+    const slope = x.k * x.mp * x.g * x.rise / 60000;      // kW per (passenger/min)
+    return { Pf: P, Efd, Evd, Etd, Eta: Etd * x.d_a, perPass: x.p_day ? Etd / x.p_day : null, slope,
+             cross: x.dir === "down" && slope > 0 ? P / slope : null, sign };
+  }
+
+  /* ---------- sources: a CA run or a video analysis -> calculator inputs */
+  function fromRun(rec, loadSeries) {
+    const c = rec.config, m = rec.metrics || {};
+    const dir = c.direction || (c.down_escalator ? "down" : "up");
+    const th = Math.atan2(c.step_height_m, c.step_length_m), rise = c.n_steps * c.step_height_m;
+    const tTheory = c.n_steps * c.step_length_m / c.escalator_speed_mps;
+    const w = m.share_walkers || 0, R = m.mean_ride_s, Rw = m.mean_ride_walkers_s;
+    // ride of a stander = t_max of Eq. 11, taken from the run itself (walkers removed from the mean)
+    const tMax = (R && w < 1 && (w === 0 || Rw)) ? (R - w * (Rw || 0)) / (1 - w) : tTheory;
+    const ve = c.escalator_speed_mps / Math.cos(th);
+    return { kind: "run", dir, rise, riseNote: `${c.n_steps} steps × ${c.step_height_m} m step height`,
+      perHour: (m.boarded || 0) / (m.sim_time_s || c.duration_s) * 3600, flowNote: `${m.boarded} boarded in ${Math.round(m.sim_time_s || c.duration_s)} s of the run`,
+      w, ve, vp: Rw ? ve * (tMax / Rw - 1) : WALK_SPEED[dir], vpNote: Rw ? "walkers' speed relative to the steps, from their ride times" : "no walkers in this run; paper's value",
+      kCA: R ? Math.min(1, R / tMax) : 1, R, tMax, vVert: rise / tMax, loadSeries };
+  }
+  function fromVideo(a) {
+    const m = a.measured || {}, cal = a.calibration || {}, dir = cal.direction === "down" ? "down" : "up";
+    const steps = cal.total_steps || 30;
+    return { kind: "video", dir, rise: steps * STEP_H_VIDEO, riseNote: `${steps} steps × 0.24 m (assumed step height: enter the real rise if you know it)`,
+      perHour: (m.boarding_flow_ped_min ?? m.arrival_rate_per_min ?? 0) * 60, flowNote: `${m.boardings ?? "–"} boardings in ${Math.round(m.duration_s || 0)} s of video`,
+      w: (m.walk_pct || 0) / 100, ve: m.belt_speed_mps ? m.belt_speed_mps / Math.cos(THETA_VIDEO) : 0.64, vp: WALK_SPEED[dir],
+      vpNote: "walking speed not measured in the video; paper's value", kCA: null, loadSeries: null };
+  }
+
+  /* ---------- the paper's Appendix A, checked live */
+  const EXAMPLES = [
+    ["Ex. 1 · 7.623 m, down, 24,910 pass/day, 20 h/day, k_wf 0.7, general", { rise: 7.623, dir: "down", p_day: 24910, h_d: 20, k: 0.7, design: "general", d_a: 365, mp: MP, g: G }, [122.8, 27.16, 95.64, null]],
+    ["Ex. 2 · 12.5 m, up, 12,000 pass/day, 14 h/day, k_wf 0.85, type D", { rise: 12.5, dir: "up", p_day: 12000, h_d: 14, k: 0.85, design: "D", d_a: 365, mp: MP, g: G }, [106.61, 26.1, 132.7, null]],
+    ["Ex. 3 · 18 m, down, 26,000 pass/day, 20 h/day, nobody walks, type C, 250 days", { rise: 18, dir: "down", p_day: 26000, h_d: 20, k: 1, design: "C", d_a: 250, mp: MP, g: G }, [467.6, 95.6, 372, 93000]],
+  ];
+
+  /* ---------- formatting */
+  const f = (v, d = 1) => (v === null || v === undefined || !isFinite(v)) ? "–" : (+v).toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d });
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const COL = { pink: "#ff5fa8", cyan: "#5ff2ff", gold: "#ffd76a", mint: "#6dffc4", violet: "#b98cff", white: "rgba(255,255,255,.75)" };
+
+  const CSS = `
+.en-form { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px 16px; }
+.en-form .wide { grid-column: 1 / -1; }
+.en-f label { display: block; font-size: 11.5px; text-transform: uppercase; letter-spacing: .08em; margin-bottom: 5px; color: var(--text-2); }
+.en-f input, .en-f select { width: 100%; box-sizing: border-box; font: inherit; font-size: 14px; color: #fff; text-shadow: none; padding: 8px 11px; border-radius: 12px;
+  border: 1px solid var(--edge-soft, rgba(255,255,255,.4)); background: rgba(70,30,70,.35); }
+.en-f select option { color: #222; background: #fff; }
+.en-f input:disabled { opacity: .55; }
+.en-f .en-hint { font-size: 12px; color: var(--muted); margin-top: 4px; line-height: 1.4; }
+.en-eq td:first-child { white-space: nowrap; color: var(--muted); font-size: 12px; }
+.en-eq td.en-math { font-family: "Cambria Math", "Times New Roman", serif; font-size: 15px; }
+.en-eq td.num b { color: var(--neon-mint, #6dffc4); }
+.en-ok { color: var(--neon-mint, #6dffc4); font-weight: 600; } .en-bad { color: #ff8fa3; font-weight: 600; }
+.en-off { opacity: .45; }
+.en-sub { color: var(--muted); font-size: 12px; margin: 2px 0 0; }`;
+
+  /* ---------- the tab */
+  function mount(el, opts) {
+    if (!document.getElementById("energy-css")) { const s = document.createElement("style"); s.id = "energy-css"; s.textContent = CSS; document.head.appendChild(s); }
+    const sources = opts.sources || [];
+    const charts = {};
+    let src = null, series = null, seriesFor = null;
+    const optHtml = sources.map(s => `<option value="${esc(s.id)}">${esc(s.label)}</option>`).join("");
+    const designOpts = Object.entries(FIXED).map(([k, v]) => `<option value="${k}">${esc(v[0])} (${v[3]})</option>`).join("");
+    el.innerHTML = `
+<div class="section grid g2">
+  <div class="card paper">
+    <h3 class="sub">1 · Escalator and passengers</h3>
+    <div class="en-form">
+      <div class="en-f wide"><label for="en-src">Take the inputs from</label><select id="en-src">${optHtml}<option value="manual">Enter my own values</option></select>
+        <div class="en-hint" id="en-src-note"></div></div>
+      <div class="en-f"><label for="en-rise">Vertical rise r<sub>e</sub> [m]</label><input type="number" id="en-rise" step="0.01" min="0"><div class="en-hint" id="en-rise-note"></div></div>
+      <div class="en-f"><label for="en-dir">Direction</label><select id="en-dir"><option value="up">Up (lifts passengers: adds energy)</option><option value="down">Down (passengers drive it: recovers energy)</option></select></div>
+      <div class="en-f wide"><label for="en-design">Mechanical design → fixed-loss equation</label><select id="en-design">${designOpts}</select><div class="en-hint" id="en-design-note"></div></div>
+      <div class="en-f"><label for="en-hd">Running hours per day h<sub>d</sub></label><input type="number" id="en-hd" step="0.5" min="0" max="24" value="20"></div>
+      <div class="en-f"><label for="en-da">Operating days per year d<sub>a</sub></label><input type="number" id="en-da" step="1" min="0" max="366" value="365"></div>
+      <div class="en-f"><label for="en-pmode">Passengers per day p<sub>day</sub></label><select id="en-pmode"><option value="src">From the source: boarding rate × hours</option><option value="manual">Enter my own</option></select></div>
+      <div class="en-f"><label for="en-pday">p<sub>day</sub> [passengers/day]</label><input type="number" id="en-pday" step="100" min="0"><div class="en-hint" id="en-pday-note"></div></div>
+      <div class="en-f"><label for="en-mp">Passenger mass m<sub>p</sub> [kg]</label><input type="number" id="en-mp" step="1" min="1" value="75"></div>
+      <div class="en-f"><label for="en-g">g [m/s²]</label><input type="number" id="en-g" step="0.01" value="9.81"></div>
+    </div>
+  </div>
+  <div class="card paper">
+    <h3 class="sub">2 · Walking factor k<sub>wf</sub></h3>
+    <p class="small" style="margin-top:0">Walkers spend less time on the escalator, so it lifts (or recovers) less energy per passenger. k<sub>wf</sub> is the time passengers actually spend on the escalator divided by the time if nobody walked (1 = nobody walks, 0.5 = extreme).</p>
+    <div class="en-form">
+      <div class="en-f wide"><label for="en-kmode">Where k<sub>wf</sub> comes from</label><select id="en-kmode">
+        <option value="ca">Measured in the CA run: ride times (Eq. 11)</option>
+        <option value="eq14">Walking share and walking speed (Eq. 14)</option>
+        <option value="fixed">A fixed value</option></select></div>
+      <div class="en-f" data-k="eq14"><label for="en-w">Walking passengers w [%]</label><input type="number" id="en-w" step="1" min="0" max="100"></div>
+      <div class="en-f" data-k="eq14"><label for="en-ve">Escalator speed v<sub>e</sub> [m/s]</label><input type="number" id="en-ve" step="0.01" min="0.01"><div class="en-hint">Along the incline.</div></div>
+      <div class="en-f" data-k="eq14"><label for="en-vp">Walking speed v<sub>p</sub> [m/s]</label><input type="number" id="en-vp" step="0.01" min="0"><div class="en-hint" id="en-vp-note"></div></div>
+      <div class="en-f" data-k="fixed"><label for="en-kpre">Value</label><select id="en-kpre">${K_PRESETS.map(([v, l]) => `<option value="${v}">${l}</option>`).join("")}<option value="own">My own value</option></select></div>
+      <div class="en-f" data-k="fixed"><label for="en-kfix">k<sub>wf</sub></label><input type="number" id="en-kfix" step="0.01" min="0.5" max="1" value="0.8"></div>
+    </div>
+    <p class="small" id="en-k-out" style="margin:14px 0 0"></p>
+  </div>
+</div>
+<div class="section grid g4" id="en-kpis"></div>
+<div class="section card paper">
+  <h3 class="sub">Calculation, step by step</h3>
+  <div class="table-wrap"><table class="en-eq"><thead><tr><th>Paper</th><th>Equation</th><th>With your numbers</th><th class="num">Result</th></tr></thead><tbody id="en-steps"></tbody></table></div>
+</div>
+<div class="section grid g2">
+  <div class="card paper"><h3 class="sub">Power and passenger flow</h3><div class="chart-box"><canvas id="en-ch-flow"></canvas></div>
+    <div class="chart-note" id="en-flow-note"></div></div>
+  <div class="card paper"><h3 class="sub">Power during the CA run</h3><div class="chart-box" id="en-time-box"><canvas id="en-ch-time"></canvas></div>
+    <div class="chart-note" id="en-time-note"></div></div>
+</div>`;
+    const $ = id => el.querySelector("#" + id), num = id => parseFloat($(id).value);
+
+    function fillFrom(s) {
+      src = s; series = null;
+      if (s) {
+        $("en-rise").value = (+s.rise).toFixed(2); $("en-rise-note").textContent = s.riseNote;
+        $("en-dir").value = s.dir;
+        $("en-pmode").value = "src";
+        $("en-w").value = (s.w * 100).toFixed(1); $("en-ve").value = s.ve.toFixed(3); $("en-vp").value = s.vp.toFixed(3); $("en-vp-note").textContent = s.vpNote;
+        $("en-kmode").value = s.kCA !== null ? "ca" : "eq14";
+        $("en-src-note").textContent = s.kind === "run" ? "A saved CA run: rise, direction, boarding rate and walking come from it." : "A video analysis: boarding flow, direction, walking share and belt speed come from it.";
+        if (s.loadSeries) s.loadSeries().then(x => { if (src === s) { series = x; seriesFor = s; update(); } }).catch(() => {});
+      } else {
+        $("en-rise-note").textContent = "From floor to floor."; $("en-pmode").value = "manual";
+        if (!$("en-pday").value) $("en-pday").value = 10000;
+        if (!$("en-rise").value) $("en-rise").value = "6.72";
+        $("en-w").value = $("en-w").value || "20"; $("en-ve").value = $("en-ve").value || "0.64"; $("en-vp").value = $("en-vp").value || "0.63";
+        $("en-vp-note").textContent = "Paper: 0.63 up, 0.66 down."; $("en-kmode").value = "fixed";
+        $("en-src-note").textContent = "Type in your escalator's values.";
+      }
+      $("en-kmode").querySelector('option[value="ca"]').disabled = !(s && s.kCA !== null);
+      update();
+    }
+
+    function inputs() {
+      const dir = $("en-dir").value, h_d = num("en-hd");
+      const pmode = $("en-pmode").value;
+      if (pmode === "src" && src) $("en-pday").value = Math.round(src.perHour * h_d);
+      $("en-pday").disabled = pmode === "src";
+      $("en-pmode").querySelector('option[value="src"]').disabled = !src;
+      const kmode = $("en-kmode").value, w = num("en-w") / 100, ve = num("en-ve"), vp = num("en-vp");
+      el.querySelectorAll("[data-k]").forEach(n => n.classList.toggle("en-off", n.dataset.k !== kmode));
+      if ($("en-kpre").value !== "own") $("en-kfix").value = $("en-kpre").value;
+      $("en-kfix").disabled = $("en-kpre").value !== "own";
+      const k = kmode === "ca" && src && src.kCA !== null ? src.kCA : kmode === "eq14" ? kEq14(w, ve, vp) : num("en-kfix");
+      return { rise: num("en-rise"), dir, design: $("en-design").value, h_d, d_a: num("en-da"), p_day: num("en-pday"), mp: num("en-mp"), g: num("en-g"),
+               k, kmode, w, ve, vp };
+    }
+
+    function update() {
+      const x = inputs();
+      $("en-design-note").textContent = FIXED[x.design][4];
+      $("en-pday-note").textContent = $("en-pmode").value === "src" && src ? `${f(src.perHour, 0)} boarded per hour × ${f(x.h_d, 1)} h · ${src.flowNote}` : "";
+      if (![x.rise, x.h_d, x.d_a, x.p_day, x.mp, x.g, x.k].every(isFinite)) return;
+      const r = compute(x), F = FIXED[x.design], up = x.dir === "up";
+      $("en-k-out").innerHTML = x.kmode === "ca"
+        ? `k<sub>wf</sub> = t<sub>walk</sub> / t<sub>max</sub> = ${f(src.R, 2)} s / ${f(src.tMax, 2)} s = <b>${f(x.k, 3)}</b> <span class="muted">(mean ride of everyone who boarded ÷ ride of a stander, both from the run)</span>`
+        : x.kmode === "eq14" ? `k<sub>wf</sub> = 1 − w·v<sub>p</sub>/(v<sub>e</sub>+v<sub>p</sub>) = 1 − ${f(x.w, 3)}×${f(x.vp, 2)}/(${f(x.ve, 2)}+${f(x.vp, 2)}) = <b>${f(x.k, 3)}</b>`
+        : `k<sub>wf</sub> = <b>${f(x.k, 3)}</b>`;
+      const kpi = (k, v, u, note) => `<div class="kpi"><div class="k">${k}</div><div class="v">${v}<span class="u">${u}</span></div><div class="note">${note}</div></div>`;
+      $("en-kpis").innerHTML = kpi("Fixed power (unloaded)", f(r.Pf, 2), "kW", `${F[0]} · ${F[3]}`)
+        + kpi("Energy per day", f(r.Etd, 1), "kWh/day", `${f(r.Efd, 1)} fixed ${up ? "+" : "−"} ${f(r.Evd, 1)} ${up ? "to lift" : "recovered from"} passengers`)
+        + kpi("Energy per year", f(r.Eta / 1000, 1), "MWh/year", `${f(x.d_a, 0)} days × ${f(r.Etd, 1)} kWh`)
+        + kpi("Per passenger", f(r.perPass * 1000, 1), "Wh", `${f(x.p_day, 0)} passengers/day${r.cross ? ` · feeds power back above ${f(r.cross, 0)} pass/min` : ""}`);
+      const row = (eq, math, sub, res) => `<tr><td>${eq}</td><td class="en-math">${math}</td><td class="small">${sub}</td><td class="num">${res}</td></tr>`;
+      $("en-steps").innerHTML =
+        row(F[3], `P<sub>f</sub> = ${F[1]}·r<sub>e</sub> ${F[2] < 0 ? "−" : "+"} ${Math.abs(F[2])}`, `${F[1]} × ${f(x.rise, 2)} ${F[2] < 0 ? "−" : "+"} ${Math.abs(F[2])}`, `<b>${f(r.Pf, 2)}</b> kW`)
+        + row("Eq. 8", "E<sub>fd</sub> = P<sub>f</sub> · h<sub>d</sub>", `${f(r.Pf, 2)} × ${f(x.h_d, 1)}`, `<b>${f(r.Efd, 1)}</b> kWh/day`)
+        + (x.kmode === "ca" ? row("Eq. 11", "k<sub>wf</sub> = t<sub>walk</sub> / t<sub>max</sub>", `${f(src.R, 2)} s / ${f(src.tMax, 2)} s`, `<b>${f(x.k, 3)}</b>`)
+          : x.kmode === "eq14" ? row("Eq. 14", "k<sub>wf</sub> = 1 − w·v<sub>p</sub> / (v<sub>e</sub> + v<sub>p</sub>)", `1 − ${f(x.w, 3)} × ${f(x.vp, 2)} / (${f(x.ve, 2)} + ${f(x.vp, 2)})`, `<b>${f(x.k, 3)}</b>`)
+          : row("given", "k<sub>wf</sub>", "fixed value", `<b>${f(x.k, 3)}</b>`))
+        + row("Eq. 9", "E<sub>vd</sub> = p<sub>day</sub>·g·r<sub>e</sub>·m<sub>p</sub>·k<sub>wf</sub> / 3,600,000", `${f(x.p_day, 0)} × ${f(x.g, 2)} × ${f(x.rise, 2)} × ${f(x.mp, 0)} × ${f(x.k, 3)} / 3,600,000`, `<b>${f(r.Evd, 2)}</b> kWh/day`)
+        + row("Eq. 10", `E<sub>td</sub> = E<sub>fd</sub> ${up ? "+" : "−"} E<sub>vd</sub> <span class="muted">(${up ? "up" : "down"})</span>`, `${f(r.Efd, 1)} ${up ? "+" : "−"} ${f(r.Evd, 2)}`, `<b>${f(r.Etd, 2)}</b> kWh/day`)
+        + row("Eq. 27", "E<sub>ta</sub> = E<sub>td</sub> · d<sub>a</sub>", `${f(r.Etd, 2)} × ${f(x.d_a, 0)}`, `<b>${f(r.Eta, 0)}</b> kWh/year`)
+        + row("derived", "E<sub>td</sub> / p<sub>day</sub>", `${f(r.Etd, 2)} / ${f(x.p_day, 0)}`, `<b>${f(r.perPass * 1000, 2)}</b> Wh/passenger`)
+        + row("derived (Fig. 9)", `P(q) = P<sub>f</sub> ${up ? "+" : "−"} k<sub>wf</sub>·m<sub>p</sub>·g·r<sub>e</sub>·q / 60,000`, `${f(r.Pf, 2)} ${up ? "+" : "−"} ${f(r.slope, 4)} × q <span class="muted">(q in pass/min)</span>`, `${f(r.slope * 1000, 1)} W per pass/min`)
+        + (r.cross ? row("derived (Fig. 9)", "q* = 60,000·P<sub>f</sub> / (k<sub>wf</sub>·m<sub>p</sub>·g·r<sub>e</sub>)", `60,000 × ${f(r.Pf, 2)} / (${f(x.k, 3)} × ${f(x.mp, 0)} × ${f(x.g, 2)} × ${f(x.rise, 2)})`, `<b>${f(r.cross, 0)}</b> pass/min`) : "");
+      drawFlow(x, r); drawTime(x, r);
+    }
+
+    function mk(id, cfg) { if (charts[id]) charts[id].destroy(); const c = $(id); if (!c || !window.Chart) return; charts[id] = new Chart(c, cfg); }
+    const axes = (xt, yt) => ({ x: { type: "linear", title: { display: true, text: xt } }, y: { title: { display: true, text: yt } } });
+
+    function drawFlow(x, r) {
+      const qNow = src && $("en-pmode").value === "src" ? src.perHour / 60 : x.p_day / (x.h_d * 60);
+      const qMax = Math.max(60, qNow * 1.6, r.cross ? r.cross * 1.25 : 0);
+      const P = q => r.Pf + r.sign * r.slope * q;
+      const sets = [
+        { label: `${x.dir === "up" ? "Up" : "Down"} escalator`, data: [{ x: 0, y: P(0) }, { x: qMax, y: P(qMax) }], borderColor: COL.pink, backgroundColor: COL.pink, borderWidth: 2.6, pointRadius: 0, showLine: true },
+        { label: "Fixed losses", data: [{ x: 0, y: r.Pf }, { x: qMax, y: r.Pf }], borderColor: COL.white, backgroundColor: COL.white, borderDash: [6, 4], borderWidth: 1.4, pointRadius: 0, showLine: true },
+        { label: "This escalator's mean flow", data: [{ x: qNow, y: P(qNow) }], borderColor: COL.cyan, backgroundColor: COL.cyan, pointRadius: 7, pointHoverRadius: 9, showLine: false },
+      ];
+      if (r.cross) sets.push({ label: "Crossover (starts feeding back)", data: [{ x: r.cross, y: 0 }], borderColor: COL.gold, backgroundColor: COL.gold, pointRadius: 7, pointStyle: "rectRot", showLine: false });
+      mk("en-ch-flow", { type: "scatter", data: { datasets: sets }, options: { scales: axes("Passengers boarding per minute", "Power drawn [kW]"), plugins: { tooltip: { callbacks: { label: c => `${c.dataset.label}: ${f(c.parsed.x, 1)} pass/min → ${f(c.parsed.y, 2)} kW` } } } } });
+      $("en-flow-note").innerHTML = `Straight line from the paper's model (Fig. 9). Mean flow here: ${f(qNow, 1)} pass/min → ${f(P(qNow), 2)} kW. `
+        + (x.dir === "down" ? (r.cross ? `Below about ${f(r.cross, 0)} pass/min the down escalator draws power; above it, it regenerates.` : "") : "An up escalator draws more power with every extra passenger.");
+    }
+
+    function drawTime(x, r) {
+      const ok = src && src.kind === "run" && series && seriesFor === src;
+      $("en-time-box").style.display = ok ? "" : "none";
+      if (!ok) { if (charts["en-ch-time"]) { charts["en-ch-time"].destroy(); delete charts["en-ch-time"]; }
+        $("en-time-note").innerHTML = src && src.kind === "run" ? "Loading the run's time series…" : "Pick a saved CA run to see the power drawn second by second."; return; }
+      const vV = x.rise / (src.tMax || 1);          // vertical speed of a stander, follows the rise you enter
+      const p = series.on.map((n, i) => ({ x: series.t[i], y: r.Pf + r.sign * n * x.mp * x.g * vV / 1000 }));
+      const E = p.reduce((s, q) => s + q.y, 0) / 3600, T = series.t.length ? series.t[series.t.length - 1] : 0;
+      mk("en-ch-time", { type: "line", data: { datasets: [
+        { label: "Power drawn", data: p, borderColor: COL.mint, backgroundColor: COL.mint, borderWidth: 1.8, pointRadius: 0 },
+        { label: "Fixed losses", data: [{ x: 0, y: r.Pf }, { x: T, y: r.Pf }], borderColor: COL.white, borderDash: [6, 4], borderWidth: 1.4, pointRadius: 0 }] },
+        options: { scales: axes("Time [s]", "Power drawn [kW]"), interaction: { mode: "nearest", intersect: false } } });
+      $("en-time-note").innerHTML = `P(t) = P<sub>f</sub> ${r.sign > 0 ? "+" : "−"} N<sub>on</sub>(t)·m<sub>p</sub>·g·v<sub>vert</sub>/1000, with N<sub>on</sub> the people on the escalator each second and v<sub>vert</sub> = r<sub>e</sub>/t<sub>max</sub> = ${f(vV, 3)} m/s. `
+        + `Walkers count like standers: walking does not change the power at any moment, only how long they ride (Section 9.1). Energy over these ${f(T, 0)} s: ${f(E, 3)} kWh.`;
+    }
+
+    $("en-src").onchange = () => fillFrom(sources.find(s => s.id === $("en-src").value) || null);
+    el.querySelectorAll("input, select").forEach(n => { if (n.id !== "en-src") n.addEventListener(n.tagName === "SELECT" ? "change" : "input", update); });
+    $("en-dir").addEventListener("change", () => { if ($("en-kmode").value !== "ca" && (!src || src.kind !== "run")) $("en-vp").value = WALK_SPEED[$("en-dir").value]; update(); });
+    const first = sources.find(s => s.id === opts.selected) || sources[0] || null;
+    if (first) $("en-src").value = first.id; else $("en-src").value = "manual";
+    fillFrom(first);
+  }
+
+  return { FIXED, WALK_SPEED, compute, kEq14, Pf, fromRun, fromVideo, EXAMPLES, mount };
+})();
+/* ENERGY-END */
+function mountEnergy() {
+  const sources = [
+    ...Store.sorted("run").map(r => Object.assign(Energy.fromRun(r, async () => { const t = unpackSeries(r.series); return { t: t.t_s, on: t.on_escalator }; }),
+      { id: r.id, label: `Run ${r.num} · ${r.label}` })),
+    ...Store.sorted("video").map(v => Object.assign(Energy.fromVideo(v.analysis), { id: v.id, label: `Video ${v.num} · ${v.label}` })),
+  ];
+  Energy.mount($("energy"), { sources });
 }
 
 /* ----------------------------------------------------- method tables */
